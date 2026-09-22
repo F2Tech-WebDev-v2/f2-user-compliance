@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { MemberPanel } from './pages/MemberPanel';
+import { ExchangeAgreementReview } from './pages/ExchangeAgreementReview';
 
 /**
  * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e:
@@ -19,18 +20,21 @@ type NavItem = {
   n: number | string | null; // null = overview; number = agenda step; string = special (e.g. 'M' for Member)
   label: string;
   title: string;
-  src: string | null; // null = render local component (Dashboard OR MemberPanel)
-  kind?: 'overview' | 'member' | 'iframe';
+  src: string | null; // null = render local component
+  kind?: 'overview' | 'member' | 'iframe' | 'agreement-review';
 };
 
 const NAV_ITEMS: NavItem[] = [
   { n: null, label: 'Overview',                    title: 'Walkthrough overview',                     src: null, kind: 'overview' },
   { n: 1,    label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe' },
   { n: 2,    label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
-  // IT-F2-416 c/52b5b499 — Entitlement System step demos the Exchange
-  // Agreement Review panel (pending spin-out to f2-exchange-agreement-
-  // review scanner; current iframe target is the admin app page).
-  { n: 3,    label: 'Entitlement System',          title: 'Admin · Exchange Agreement Review',       src: 'https://admin.f2-tech.ai/admin/exchange-agreement-review', kind: 'iframe' },
+  // IT-F2-416 c/52b5b499 → c/4fc8e2a7 — Entitlement System step is
+  // now a NATIVE React page (native to f2-user-compliance itself, not
+  // iframe of the admin app) per Mike's correction "it needs to be
+  // ripped out of the admin app and become a part of ... f2-user-
+  // compliance". MVP is read-only; approve/decline actions land in
+  // phase 2 (checklist item 703492b1).
+  { n: 3,    label: 'Entitlement System',          title: 'Exchange Agreement Review (native React port)',       src: null, kind: 'agreement-review' },
   { n: 4,    label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
   // IT-F2-416 c/a16b4628 — Application(s) now demos the F2 Gap Up /
   // Down scanner (a real F2 market-data app) instead of pointing back
@@ -135,6 +139,8 @@ export function App() {
             <div style={{ overflow: 'auto', flex: 1 }}>
               <MemberPanel />
             </div>
+          ) : active.kind === 'agreement-review' ? (
+            <ExchangeAgreementReview />
           ) : (
             <iframe
               src={active.src!}
