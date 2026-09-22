@@ -129,17 +129,42 @@ export function ExchangeAgreementReview() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // EventSource on the users-live SSE bridge. Any entitlement_changed
-  // envelope schedules a debounced refetch so a decision fired from
-  // another admin surface (or another tab) syncs here within a beat.
+  // EventSource on the users-live SSE bridge. HMAC bearer is minted
+  // via POST /users-live/stream-token (cookie-authed, 60s TTL) and
+  // ridden on the EventSource URL as ?token=<t>. Bearer expiry drops
+  // us back through the mint step. Any entitlement_changed envelope
+  // schedules a debounced refetch. IT-F2-421 c/1a52f505 fix — bare
+  // EventSource without a token returned 401 "invalid or expired SSE
+  // token — mint a fresh one via POST /users-live/stream-token".
   useEffect(() => {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
     let es: EventSource | null = null;
     let closed = false;
-    const connect = () => {
-      if (closed) return;
+    let renewTimer: any = null;
+    const mint = async (): Promise<string | null> => {
       try {
-        es = new EventSource('/rest/admin/users-live/stream', { withCredentials: true });
+        const r = await fetch('/rest/admin/users-live/stream-token', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
+        });
+        if (!r.ok) return null;
+        const j = await r.json();
+        return typeof j?.token === 'string' && j.token ? j.token : null;
+      } catch { return null; }
+    };
+    const connect = async () => {
+      if (closed) return;
+      const token = await mint();
+      if (closed) return;
+      if (!token) {
+        // Silent retry — the panel still works, just no live push.
+        renewTimer = setTimeout(connect, 8000);
+        return;
+      }
+      try {
+        es = new EventSource(`/rest/admin/users-live/stream?token=${encodeURIComponent(token)}`);
         es.onmessage = (ev) => {
           try {
             const env = JSON.parse(ev.data || '{}');
@@ -151,16 +176,24 @@ export function ExchangeAgreementReview() {
         };
         es.onerror = () => {
           try { es?.close(); } catch { /* ignore */ }
-          if (!closed) setTimeout(connect, 3000);
+          es = null;
+          if (!closed) renewTimer = setTimeout(connect, 3000);
         };
+        // Re-mint 5s before the 60s TTL to avoid a broken window.
+        renewTimer = setTimeout(() => {
+          try { es?.close(); } catch { /* ignore */ }
+          es = null;
+          if (!closed) void connect();
+        }, 55000);
       } catch {
-        if (!closed) setTimeout(connect, 5000);
+        if (!closed) renewTimer = setTimeout(connect, 5000);
       }
     };
-    connect();
+    void connect();
     return () => {
       closed = true;
       try { es?.close(); } catch { /* ignore */ }
+      if (renewTimer) clearTimeout(renewTimer);
       if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
     };
   }, [load]);
@@ -268,7 +301,13 @@ export function ExchangeAgreementReview() {
       const user_id = row.USER_ID_INTERNAL || row.USER_ID;
       const customer = row.CUSTOMER;
       if (!user_id || !customer) throw new Error('missing user_id or customer');
-      const url = `/rest/user/data-agreements/admin/agreement/?user=${encodeURIComponent(user_id)}&customer=${encodeURIComponent(customer)}`;
+      // NB: no trailing slash before `?` — the controller route is
+      // Get('/admin/agreement') and the f2-members auth-gate middleware
+      // falls the /-suffixed variant through to the SPA HTML (Vercel
+      // rewrite treats /admin/agreement/ as a different resource), so
+      // the SPA saw an HTML response and JSON.parse choked. HAR from
+      // Mike (IT-F2-421 c/1a52f505) captured the 2 KB HTML body.
+      const url = `/rest/user/data-agreements/admin/agreement?user=${encodeURIComponent(user_id)}&customer=${encodeURIComponent(customer)}`;
       const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = await res.json();
