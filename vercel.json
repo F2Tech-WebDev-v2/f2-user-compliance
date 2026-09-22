@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/rest/:path*",
+      "destination": "https://f2-admin-service2.f2-tech.ai/rest/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://f2-admin-service2.f2-tech.ai/rest/auth/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://f2-admin-service2.f2-tech.ai/rest/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
