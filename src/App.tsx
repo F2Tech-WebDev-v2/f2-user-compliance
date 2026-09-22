@@ -27,7 +27,10 @@ const NAV_ITEMS: NavItem[] = [
   { n: null, label: 'Overview',                    title: 'Walkthrough overview',                     src: null, kind: 'overview' },
   { n: 1,    label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe' },
   { n: 2,    label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
-  { n: 3,    label: 'Entitlement System',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+  // IT-F2-416 c/52b5b499 — Entitlement System step demos the Exchange
+  // Agreement Review panel (pending spin-out to f2-exchange-agreement-
+  // review scanner; current iframe target is the admin app page).
+  { n: 3,    label: 'Entitlement System',          title: 'Admin · Exchange Agreement Review',       src: 'https://admin.f2-tech.ai/admin/exchange-agreement-review', kind: 'iframe' },
   { n: 4,    label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
   // IT-F2-416 c/a16b4628 — Application(s) now demos the F2 Gap Up /
   // Down scanner (a real F2 market-data app) instead of pointing back
