@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { MemberPanel } from './pages/MemberPanel';
@@ -22,31 +22,44 @@ type NavItem = {
   title: string;
   src: string | null; // null = render local component
   kind?: 'overview' | 'member' | 'iframe' | 'agreement-review';
+  // IT-F2-416 c/10219ddd — stable URL slug per tab so hard-refresh
+  // (?tab=<slug>) restores selection.
+  slug: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { n: null, label: 'Overview',                    title: 'Walkthrough overview',                     src: null, kind: 'overview' },
-  { n: 1,    label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe' },
-  { n: 2,    label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
-  // IT-F2-416 c/52b5b499 → c/4fc8e2a7 — Entitlement System step is
-  // now a NATIVE React page (native to f2-user-compliance itself, not
-  // iframe of the admin app) per Mike's correction "it needs to be
-  // ripped out of the admin app and become a part of ... f2-user-
-  // compliance". MVP is read-only; approve/decline actions land in
-  // phase 2 (checklist item 703492b1).
-  { n: 3,    label: 'Entitlement System',          title: 'Exchange Agreement Review (native React port)',       src: null, kind: 'agreement-review' },
-  { n: 4,    label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
-  // IT-F2-416 c/a16b4628 — Application(s) now demos the F2 Gap Up /
-  // Down scanner (a real F2 market-data app) instead of pointing back
-  // at Compliance Review. Open-in-new-tab escape hatch below the
-  // sidebar carries the same URL for out-of-frame credential context.
-  { n: 5,    label: 'Application(s)',              title: 'F2 Gap Up / Down (F2 market-data scanner)', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
-  // IT-F2-416 c/ee84fb8a — Member bulk-invite (local panel, not iframe).
-  { n: 'M',  label: 'Member',                      title: 'Bulk-invite members (clone entitlements from a template user)', src: null, kind: 'member' },
+  { n: null, slug: 'overview',    label: 'Overview',                    title: 'Walkthrough overview',                     src: null, kind: 'overview' },
+  { n: 1,    slug: 'data-flow',   label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe' },
+  { n: 2,    slug: 'onboarding',  label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+  { n: 3,    slug: 'entitlement', label: 'Entitlement System',          title: 'Exchange Agreement Review (native React port)',       src: null, kind: 'agreement-review' },
+  { n: 4,    slug: 'reporting',   label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
+  { n: 5,    slug: 'application', label: 'Application(s)',              title: 'F2 Gap Up / Down (F2 market-data scanner)', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
+  { n: 'M',  slug: 'member',      label: 'Member',                      title: 'Bulk-invite members (clone entitlements from a template user)', src: null, kind: 'member' },
 ];
 
 export function App() {
-  const [activeIdx, setActiveIdx] = useState<number>(0);
+  const [activeIdx, setActiveIdx] = useState<number>(() => {
+    try {
+      const slug = new URLSearchParams(window.location.search).get('tab');
+      if (!slug) return 0;
+      const idx = NAV_ITEMS.findIndex((n) => n.slug === slug);
+      return idx >= 0 ? idx : 0;
+    } catch {
+      return 0;
+    }
+  });
+  useEffect(() => {
+    try {
+      const slug = NAV_ITEMS[activeIdx]?.slug;
+      const url = new URL(window.location.href);
+      if (!slug || slug === 'overview') url.searchParams.delete('tab');
+      else url.searchParams.set('tab', slug);
+      const next = url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash;
+      window.history.replaceState(null, '', next);
+    } catch {
+      // best-effort only
+    }
+  }, [activeIdx]);
   const active = NAV_ITEMS[activeIdx];
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

@@ -18,10 +18,12 @@ ModuleRegistry.registerModules([AllCommunityModule]);
  * (checklist item 703492b1); this is the read-only surface Mike can
  * eyeball first.
  *
- * Backend: POST /rest/admin/exhibit-b (already exists in
- * f2-admin-service DataAgreementsController). Admin-role gated by
- * F2AuthMiddleware; scanners.f2-tech.ai proxies /rest/* to
- * f2-admin-service2 same-origin so cookies flow.
+ * Backend: POST /rest/user/data-agreements/admin/exhibit-b (in
+ * f2-admin-service{,2} DataAgreementsController; scanners.f2-tech.ai
+ * proxies /rest/* to f2-admin-service2 same-origin so cookies flow).
+ * IT-F2-416 c/161b0843 fix — the initial port had /rest/admin/exhibit-b
+ * which is a 404 route; the real controller mount is under /user/
+ * data-agreements/. Angular counterpart calls the same absolute path.
  */
 
 type ExhibitRow = {
@@ -50,7 +52,7 @@ export function ExchangeAgreementReview() {
     const load = async () => {
       setLoading(true); setErr(null);
       try {
-        const res = await fetch('/rest/admin/exhibit-b', {
+        const res = await fetch('/rest/user/data-agreements/admin/exhibit-b', {
           method: 'POST',
           credentials: 'include',
           headers: { 'content-type': 'application/json' },
