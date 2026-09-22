@@ -29,7 +29,11 @@ const NAV_ITEMS: NavItem[] = [
   { n: 2,    label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
   { n: 3,    label: 'Entitlement System',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
   { n: 4,    label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
-  { n: 5,    label: 'Application(s)',              title: 'Compliance Review · Overview',            src: 'https://members.f2-tech.ai/f2/f2-compliance-review', kind: 'iframe' },
+  // IT-F2-416 c/a16b4628 — Application(s) now demos the F2 Gap Up /
+  // Down scanner (a real F2 market-data app) instead of pointing back
+  // at Compliance Review. Open-in-new-tab escape hatch below the
+  // sidebar carries the same URL for out-of-frame credential context.
+  { n: 5,    label: 'Application(s)',              title: 'F2 Gap Up / Down (F2 market-data scanner)', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
   // IT-F2-416 c/ee84fb8a — Member bulk-invite (local panel, not iframe).
   { n: 'M',  label: 'Member',                      title: 'Bulk-invite members (clone entitlements from a template user)', src: null, kind: 'member' },
 ];
