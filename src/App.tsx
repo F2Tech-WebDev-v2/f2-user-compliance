@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
+import { MemberPanel } from './pages/MemberPanel';
 
 /**
  * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e:
@@ -15,19 +16,22 @@ import { Dashboard } from './pages/Dashboard';
  */
 
 type NavItem = {
-  n: number | null; // null = overview
+  n: number | string | null; // null = overview; number = agenda step; string = special (e.g. 'M' for Member)
   label: string;
   title: string;
-  src: string | null; // null = render <Dashboard/> instead of iframe
+  src: string | null; // null = render local component (Dashboard OR MemberPanel)
+  kind?: 'overview' | 'member' | 'iframe';
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { n: null, label: 'Overview',                    title: 'Walkthrough overview',                     src: null },
-  { n: 1,    label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing' },
-  { n: 2,    label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users' },
-  { n: 3,    label: 'Entitlement System',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users' },
-  { n: 4,    label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month' },
-  { n: 5,    label: 'Application(s)',              title: 'Compliance Review · Overview',            src: 'https://members.f2-tech.ai/f2/f2-compliance-review' },
+  { n: null, label: 'Overview',                    title: 'Walkthrough overview',                     src: null, kind: 'overview' },
+  { n: 1,    label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe' },
+  { n: 2,    label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+  { n: 3,    label: 'Entitlement System',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+  { n: 4,    label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
+  { n: 5,    label: 'Application(s)',              title: 'Compliance Review · Overview',            src: 'https://members.f2-tech.ai/f2/f2-compliance-review', kind: 'iframe' },
+  // IT-F2-416 c/ee84fb8a — Member bulk-invite (local panel, not iframe).
+  { n: 'M',  label: 'Member',                      title: 'Bulk-invite members (clone entitlements from a template user)', src: null, kind: 'member' },
 ];
 
 export function App() {
@@ -82,7 +86,7 @@ export function App() {
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   width: 24, height: 24, borderRadius: '50%',
-                  background: n.n == null ? '#374151' : '#1e3a8a',
+                  background: n.kind === 'overview' ? '#374151' : n.kind === 'member' ? '#15803d' : '#1e3a8a',
                   color: '#e5e7eb',
                   fontSize: 11, fontWeight: 700, flexShrink: 0,
                 }}>{n.n == null ? '·' : n.n}</span>
@@ -94,7 +98,7 @@ export function App() {
               Iframes work for most destinations but a few may X-Frame-
               deny (admin.f2-tech.ai / others); this lets the auditor
               still get to the surface without abandoning the walkthrough. */}
-          {active.src && (
+          {active.src && active.kind === 'iframe' && (
             <a
               href={active.src}
               target="_blank"
@@ -116,13 +120,17 @@ export function App() {
           )}
         </aside>
         <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {active.src == null ? (
+          {active.kind === 'overview' ? (
             <div style={{ padding: 20, overflow: 'auto', flex: 1 }}>
               <Dashboard />
             </div>
+          ) : active.kind === 'member' ? (
+            <div style={{ overflow: 'auto', flex: 1 }}>
+              <MemberPanel />
+            </div>
           ) : (
             <iframe
-              src={active.src}
+              src={active.src!}
               title={active.title}
               key={active.src}
               style={{ flex: 1, width: '100%', border: 0, background: 'white' }}
