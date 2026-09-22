@@ -191,7 +191,7 @@ export function ExchangeAgreementReview() {
     : 'fleet-wide';
 
   return (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0, flex: 1, color: '#e5e7eb' }}>
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0, flex: 1, color: '#e5e7eb', background: '#0b1220' }}>
       <div>
         <h1 style={{ margin: 0, fontSize: 20 }}>Exchange Agreement Review</h1>
         <p style={{ margin: '4px 0 0', fontSize: 12, color: '#9ca3af' }}>
