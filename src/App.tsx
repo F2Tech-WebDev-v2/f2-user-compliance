@@ -39,6 +39,48 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function App() {
+  // IT-F2-416 c/006e5ad7 (Mike 2026-09-23): "the tab title says option
+  // pit??? we can NOT cross polute company names this is a f2
+  // scanners.f2-tech.ai brand not fucking option pit". Force the tab
+  // title AND favicon-link to the F2-User-Compliance identity on mount
+  // regardless of what the outer f2-members shell / a stale PWA scope
+  // may have injected. Brand-aware: prefix with the resolved customer
+  // name on branded hosts (e.g. "Oxford Club — F2 User Compliance").
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let brandName: string | null = null;
+      try {
+        const host = window.location.hostname;
+        const r = await fetch(`/rest/api/brand-config?host=${encodeURIComponent(host)}`);
+        if (r.ok) {
+          const b = await r.json();
+          if (b?.isCustomerBrand && typeof b?.name === 'string') brandName = b.name;
+        }
+      } catch { /* fleet-wide fallback */ }
+      if (cancelled) return;
+      const title = brandName ? `${brandName} — F2 User Compliance` : 'F2 User Compliance';
+      document.title = title;
+      // Also drop any stale <link rel="icon"> pinned to a non-F2 asset.
+      // Replace with the vercel default favicon.ico we serve. Prevents
+      // a PWA-scope inherit or a service-worker cached favicon from
+      // sneaking a customer logo into the F2-User-Compliance tab.
+      try {
+        for (const l of Array.from(document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'))) {
+          l.parentElement?.removeChild(l);
+        }
+        // Inline "F2" mark so nothing external (customer favicon cache,
+        // PWA-scope inherit, service-worker fallback) can override it.
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#1e3a8a"/><text x="16" y="22" font-family="system-ui,sans-serif" font-size="18" font-weight="700" fill="#f3f4f6" text-anchor="middle">F2</text></svg>';
+        const link = document.createElement('link');
+        link.setAttribute('rel', 'icon');
+        link.setAttribute('type', 'image/svg+xml');
+        link.setAttribute('href', `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+        document.head.appendChild(link);
+      } catch { /* best-effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [activeIdx, setActiveIdx] = useState<number>(() => {
     try {
       const slug = new URLSearchParams(window.location.search).get('tab');
