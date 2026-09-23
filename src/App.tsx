@@ -5,6 +5,7 @@ import { MemberPanel } from './pages/MemberPanel';
 import { ExchangeAgreementReview } from './pages/ExchangeAgreementReview';
 import { OnboardingPanel } from './pages/OnboardingPanel';
 import { AcceptInvitePanel } from './pages/AcceptInvitePanel';
+import { DisplacementDemoPanel } from './pages/DisplacementDemoPanel';
 
 /**
  * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e + c/feafab54:
@@ -22,7 +23,7 @@ import { AcceptInvitePanel } from './pages/AcceptInvitePanel';
  * cookie/session.
  */
 
-type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite';
+type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite' | 'displacement-demo';
 
 type NavItem = {
   n: number | string | null; // null = overview / no bubble; number = agenda step; string = special (e.g. 'M' for Member)
@@ -77,7 +78,7 @@ const NAV_ITEMS: NavItem[] = [
     subs: [
       { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel)', src: null, kind: 'agreement-review' },
       { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Admin · Users panel — enable/modify/remove NYSE entitlements directly on the user record', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
-      { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'F2 Gap Up / Down — open in a second tab to trigger the displaced state', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe', credentialless: true },
+      { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'Two side-by-side isolated frames of the Gap Up / Down scanner — log the same user into both to demo displacement', src: null, kind: 'displacement-demo' },
     ],
   },
 
@@ -358,6 +359,8 @@ export function App() {
             <OnboardingPanel />
           ) : active.kind === 'accept-invite' ? (
             <AcceptInvitePanel />
+          ) : active.kind === 'displacement-demo' ? (
+            <DisplacementDemoPanel />
           ) : (
             <iframe
               // c/e64bc63f (Mike 2026-09-23) — nav items flagged
