@@ -275,6 +275,10 @@ export function OnboardingPanel() {
     // from customers (legacy fallback for customers with no per-
     // customer cognito_pool set, e.g. current F2).
     if (brand?.cognito_pool_id) body.pool_id = brand.cognito_pool_id;
+    // Force the accept-invite URL onto the SPA's current origin so the
+    // magic link the recipient clicks lands on the domain the admin is
+    // ON, not the pool's customer_slug branded fallback.
+    if (inviteHost) body.invite_host = inviteHost;
     try {
       const res = await fetch('/rest/admin/users', {
         method: 'POST', credentials: 'include',
@@ -289,33 +293,47 @@ export function OnboardingPanel() {
     } catch (e: any) {
       return { err: e?.message || 'create failed' };
     }
-  }, [customers, selectedScanners, brand]);
+  }, [customers, selectedScanners, brand, inviteHost]);
+
+  // Every mint / send / create call to the backend passes invite_host
+  // = current SPA origin so the accept-invite URL lands on the domain
+  // the admin is CURRENTLY on (scanners.f2-tech.ai when we're on the
+  // F2 hub) — not the pool's customer_slug branded host that the
+  // backend would otherwise pick when the target email happens to
+  // already live in a different customer's pool. IT-F2-416 c/7376ef8c.
+  const inviteHost = typeof window !== 'undefined' ? window.location.origin : '';
 
   const sendMagicToExisting = useCallback(async (username: string, pool_id?: string): Promise<{ err?: string }> => {
     try {
+      const body: any = {};
+      if (pool_id) body.pool_id = pool_id;
+      if (inviteHost) body.invite_host = inviteHost;
       const res = await fetch(`/rest/admin/users/${encodeURIComponent(username)}/send-magic-link`, {
         method: 'POST', credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(pool_id ? { pool_id } : {}),
+        body: JSON.stringify(body),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || j?.err) return { err: j?.err || `send HTTP ${res.status}` };
       return {};
     } catch (e: any) { return { err: e?.message || 'send failed' }; }
-  }, []);
+  }, [inviteHost]);
 
   const mintForExisting = useCallback(async (username: string, pool_id?: string): Promise<{ err?: string; url?: string }> => {
     try {
+      const body: any = {};
+      if (pool_id) body.pool_id = pool_id;
+      if (inviteHost) body.invite_host = inviteHost;
       const res = await fetch(`/rest/admin/users/${encodeURIComponent(username)}/mint-magic-link`, {
         method: 'POST', credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(pool_id ? { pool_id } : {}),
+        body: JSON.stringify(body),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || j?.err || !j?.url) return { err: j?.err || `mint HTTP ${res.status}` };
       return { url: j.url };
     } catch (e: any) { return { err: e?.message || 'mint failed' }; }
-  }, []);
+  }, [inviteHost]);
 
   const sendEmailFor = useCallback(async (email: string) => {
     setRowState(email, { state: 'sending', message: undefined, link: undefined });
