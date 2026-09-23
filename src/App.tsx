@@ -116,7 +116,7 @@ const NAV_ITEMS: NavItem[] = [
     // indicators.
     subs: [
       { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down — loads via a fresh scanner-sid so the frame skips the login prompt entirely', src: 'f2-gap-up-down', kind: 'scanner-handoff' },
-      { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Copy the members portal root URL — paste in a private window to demo the branded scanner catalog + tier chip surface (per Mike c/cba0380a)', src: 'https://members.f2-tech.ai/f2', kind: 'copy-url-members-home' },
+      { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Copy the customer-branded domain root — paste in a private window to demo the branded scanner catalog (per Mike c/cba0380a + c/b538ce09)', src: null, kind: 'copy-url-members-home' },
     ],
   },
 
@@ -402,8 +402,8 @@ export function App() {
           ) : active.kind === 'copy-url-members-home' ? (
             <CopyUrlPanel
               title="Members portal — branded scanner catalog"
-              subtitle="The members-portal home page, branded per customer (F2 slug in this case). Shows the scanner tiles + tier chip surface an end-user sees on login. To demo, run it in a private window with the demo user's credentials."
-              url={active.src!}
+              subtitle="The customer&rsquo;s own branded domain root (per c/b538ce09 — F2 customer → scanners.f2-tech.ai/, other customers → their branded scanner hub without any /slug suffix). Shows the scanner tiles + tier chip surface an end-user sees on login. To demo, run it in a private window with the demo user's credentials."
+              url={typeof window !== 'undefined' ? window.location.origin + '/' : (active.src || '')}
               steps={[
                 'Click <b>Copy URL</b> above.',
                 'Open a <b>private / incognito</b> browser window (so the dashboard&rsquo;s admin session doesn&rsquo;t auto-authenticate you into a different view).',
