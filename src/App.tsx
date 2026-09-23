@@ -8,6 +8,7 @@ import { OnboardingPanel } from './pages/OnboardingPanel';
 import { AcceptInvitePanel } from './pages/AcceptInvitePanel';
 import { DisplacementDemoPanel } from './pages/DisplacementDemoPanel';
 import { ScannerHandoffPanel } from './pages/ScannerHandoffPanel';
+import { CopyUrlPanel } from './pages/CopyUrlPanel';
 import { useMe } from './api/me';
 import { setTokenBundle } from './auth/session';
 
@@ -27,7 +28,7 @@ import { setTokenBundle } from './auth/session';
  * cookie/session.
  */
 
-type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite' | 'displacement-demo' | 'scanner-handoff';
+type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite' | 'displacement-demo' | 'scanner-handoff' | 'copy-url-members-home';
 
 type NavItem = {
   n: number | string | null; // null = overview / no bubble; number = agenda step; string = special (e.g. 'M' for Member)
@@ -107,11 +108,15 @@ const NAV_ITEMS: NavItem[] = [
     // indicators.
     subs: [
       { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down — loads via a fresh scanner-sid so the frame skips the login prompt entirely', src: 'f2-gap-up-down', kind: 'scanner-handoff' },
-      { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Members portal — scanner catalog + tier chip surface', src: 'https://members.f2-tech.ai/f2', kind: 'iframe' },
+      { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Copy the members portal root URL — paste in a private window to demo the branded scanner catalog + tier chip surface (per Mike c/cba0380a)', src: 'https://members.f2-tech.ai/f2', kind: 'copy-url-members-home' },
     ],
   },
 
-  { n: 'M', slug: 'member', label: 'Member', title: 'Bulk-invite members (clone entitlements from a template user)', src: null, kind: 'member' },
+  // c/199c2e28 (Mike 2026-09-23) — Member nav removed from the
+  // sidebar. Its bulk-invite-via-template functionality was subsumed
+  // by OnboardingPanel; the standalone "Member" bubble was surplus.
+  // MemberPanel.tsx stays in the tree for now in case Mike wants it
+  // back — dead-code sweep can drop it later.
 ];
 
 // Flattened lookup for slug → (parentIdx, subIdx?) so URL persistence
@@ -384,6 +389,19 @@ export function App() {
             <DisplacementDemoPanel />
           ) : active.kind === 'scanner-handoff' ? (
             <ScannerHandoffPanel scannerId={active.src!} title={active.title} />
+          ) : active.kind === 'copy-url-members-home' ? (
+            <CopyUrlPanel
+              title="Members portal — branded scanner catalog"
+              subtitle="The members-portal home page, branded per customer (F2 slug in this case). Shows the scanner tiles + tier chip surface an end-user sees on login. To demo, run it in a private window with the demo user's credentials."
+              url={active.src!}
+              steps={[
+                'Click <b>Copy URL</b> above.',
+                'Open a <b>private / incognito</b> browser window (so the dashboard&rsquo;s admin session doesn&rsquo;t auto-authenticate you into a different view).',
+                'Paste the URL into the address bar. Log in with the demo user&rsquo;s credentials when the members portal prompts you.',
+                'You&rsquo;ll land on the F2-branded scanner catalog with a tier chip in the header — the same experience an end-user sees post-login.',
+              ]}
+              note={"<b>Why private / incognito?</b> The compliance dashboard is already authenticated at <code>.f2-tech.ai</code>. Loading the members portal in the same window would carry the admin&rsquo;s session cookies and show the admin&rsquo;s tile list instead of the demo user&rsquo;s. A private window gives you a fresh cookie jar."}
+            />
           ) : (
             <iframe
               src={active.src!}
