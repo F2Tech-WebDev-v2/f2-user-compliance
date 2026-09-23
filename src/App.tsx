@@ -85,9 +85,9 @@ const NAV_ITEMS: NavItem[] = [
     // Step 4 body: monthly report + who has access + audit of system
     // changes.
     subs: [
-      { n: null, slug: 'reporting-counts-month', label: 'Counts by Month',    title: 'Compliance Report · Counts by Month (monthly submission report)', src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
+      { n: null, slug: 'reporting-counts-month', label: 'Counts by Month',    title: 'Compliance Report · Counts by Month (monthly submission report)', src: 'https://scanners.f2-tech.ai/scans/f2-compliance-report?tab=counts-by-month', kind: 'iframe' },
       { n: null, slug: 'reporting-exhibit-b',    label: 'Exhibit B / SIP',    title: 'Compliance Report · Exhibit B (NYSE §9.2 Pro subscribers)', src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/exhibit-b', kind: 'iframe' },
-      { n: null, slug: 'reporting-access',       label: 'Access review history', title: 'Admin · Compliance Review History (pinned board — log of every exchange-agreement approve/decline decision)', src: 'https://admin.f2-tech.ai/admin/pinned/f2-compliance-review', kind: 'iframe' },
+      { n: null, slug: 'reporting-access',       label: 'Access review history', title: 'Compliance Report · Login Periods (per-user first login → last login span)', src: 'https://scanners.f2-tech.ai/scans/f2-compliance-report?tab=login-periods', kind: 'iframe' },
     ],
   },
 
