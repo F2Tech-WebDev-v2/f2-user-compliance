@@ -73,6 +73,8 @@ export function OnboardingPanel() {
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [scannerFilter, setScannerFilter] = useState('');
+  const [manualScanners, setManualScanners] = useState('');
+  const [customerOverride, setCustomerOverride] = useState('');
   const [emails, setEmails] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
 
@@ -101,11 +103,21 @@ export function OnboardingPanel() {
           fetch('/rest/admin/scanners', { credentials: 'include' }),
         ]);
         if (!meRes.ok) throw new Error(`me HTTP ${meRes.status}`);
-        if (!scanRes.ok) throw new Error(`scanners HTTP ${scanRes.status}`);
         const meBody = await meRes.json();
-        const scanBody = await scanRes.json();
         if (cancelled) return;
         setMe(meBody);
+        if (!scanRes.ok) {
+          setLoadErr(`scanners HTTP ${scanRes.status} — pick from the manual slug entry below`);
+          return;
+        }
+        const scanBody = await scanRes.json();
+        if (cancelled) return;
+        // Backend returns EITHER an array (happy path) OR {err:'…'} on
+        // scope failures — surface the message so it isn't a silent empty.
+        if (scanBody && typeof scanBody === 'object' && !Array.isArray(scanBody) && scanBody.err) {
+          setLoadErr(`scanners: ${scanBody.err} — pick from the manual slug entry below`);
+          return;
+        }
         const list: Scanner[] = Array.isArray(scanBody) ? scanBody
           : Array.isArray(scanBody?.rows) ? scanBody.rows
           : Array.isArray(scanBody?.scanners) ? scanBody.scanners
@@ -120,6 +132,9 @@ export function OnboardingPanel() {
         });
         visible.sort((a, b) => scanSlug(a).localeCompare(scanSlug(b)));
         setScanners(visible);
+        if (visible.length === 0) {
+          setLoadErr('scanner catalog returned empty — pick from the manual slug entry below');
+        }
       } catch (e: any) {
         if (!cancelled) setLoadErr(e?.message || 'failed to load');
       } finally {
@@ -129,7 +144,17 @@ export function OnboardingPanel() {
     return () => { cancelled = true; };
   }, []);
 
-  const customers = useMemo(() => parseCustomers(me?.customers), [me]);
+  const adminCustomers = useMemo(() => parseCustomers(me?.customers), [me]);
+  // Effective customers to grant to the invitee:
+  //   1. Branded host → use that customer's slug (canonical target).
+  //   2. Otherwise honor customerOverride typed in the UI.
+  //   3. Otherwise the admin's own scope, minus '*' wildcard.
+  const customers = useMemo(() => {
+    if (brand?.isCustomerBrand && brand?.slug) return [brand.slug];
+    const typed = customerOverride.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (typed.length) return typed;
+    return adminCustomers.filter((c) => c !== '*');
+  }, [brand, customerOverride, adminCustomers]);
 
   const filteredScanners = useMemo(() => {
     const q = scannerFilter.trim().toLowerCase();
@@ -155,10 +180,15 @@ export function OnboardingPanel() {
     return out;
   }, [emails]);
 
-  const selectedScanners = useMemo(
-    () => Object.entries(checked).filter(([, v]) => v).map(([k]) => k),
-    [checked],
-  );
+  const selectedScanners = useMemo(() => {
+    const set = new Set<string>();
+    for (const [k, v] of Object.entries(checked)) if (v) set.add(k);
+    for (const raw of manualScanners.split(/[\s,;]+/)) {
+      const s = raw.trim();
+      if (s) set.add(s);
+    }
+    return Array.from(set);
+  }, [checked, manualScanners]);
 
   const rebuildPreview = useCallback(() => {
     setRows(parsedEmails.map((email) => ({ email, state: 'idle' as RowState })));
@@ -171,12 +201,12 @@ export function OnboardingPanel() {
   }, []);
 
   const createUser = useCallback(async (email: string, sendMagicLink: boolean): Promise<{ err?: string; username?: string; pool_id?: string }> => {
-    if (customers.length === 0) return { err: 'admin has no custom:customers scope' };
+    if (customers.length === 0) return { err: 'no customer scope resolved — type target customer slug(s) below' };
     if (selectedScanners.length === 0) return { err: 'select at least one scanner' };
     const body = {
       email,
       role: 'member',
-      customers: customers.filter((c) => c !== '*').join(','),
+      customers: customers.join(','),
       scanners: selectedScanners.join(','),
       send_magic_link: sendMagicLink,
     };
@@ -274,25 +304,51 @@ export function OnboardingPanel() {
           <div style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 600 }}>Scanners</div>
           <input
             type="text"
-            placeholder="filter…"
+            placeholder="filter catalog…"
             value={scannerFilter}
             onChange={(e) => setScannerFilter(e.target.value)}
-            style={{ flex: '0 1 260px', minWidth: 160 }}
+            style={{ flex: '0 1 220px', minWidth: 140 }}
+          />
+          <input
+            type="text"
+            placeholder="or type scanner slug(s) manually — comma-separated"
+            value={manualScanners}
+            onChange={(e) => setManualScanners(e.target.value)}
+            style={{ flex: '1 1 260px', minWidth: 200 }}
           />
           <span style={{ fontSize: 11, color: '#9ca3af' }}>
-            {selectedScanners.length} selected of {scanners.length}
+            {selectedScanners.length} selected {scanners.length > 0 ? `(of ${scanners.length} in catalog)` : ''}
           </span>
-          {selectedScanners.length > 0 && (
+          {(selectedScanners.length > 0 || manualScanners) && (
             <button
               type="button"
-              onClick={() => setChecked({})}
+              onClick={() => { setChecked({}); setManualScanners(''); }}
               style={{ fontSize: 11, background: 'transparent', border: 'none', color: '#9ca3af', textDecoration: 'underline', cursor: 'pointer' }}
             >Clear</button>
           )}
           <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>
-            Customers scope: {customers.length ? customers.join(', ') : '(none — cannot invite)'}
+            Customer scope: {customers.length ? customers.join(', ') : '(none — set below)'}
           </span>
         </div>
+
+        {/* Customer override — used when the admin has custom:customers='*'
+            (wildcard, empty effective scope) or when we're on the F2 hub
+            and need to target a specific customer for the invite. Hidden
+            when we're on a branded customer host (brand.slug wins). */}
+        {!brand?.isCustomerBrand && (
+          <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 11, color: '#9ca3af' }}>
+              Target customer slug(s) (optional; overrides your <code>custom:customers</code>):
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. f2, oxfordclub — comma-separated"
+              value={customerOverride}
+              onChange={(e) => setCustomerOverride(e.target.value)}
+              style={{ flex: '1 1 300px', minWidth: 240 }}
+            />
+          </div>
+        )}
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '4px 12px',
           maxHeight: 200, overflow: 'auto', paddingRight: 8,
