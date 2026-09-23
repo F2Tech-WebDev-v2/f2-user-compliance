@@ -409,6 +409,43 @@ export function OnboardingPanel() {
         </p>
       </div>
 
+      {/* Target pool banner — Mike c/33e215f5: prominent header showing
+          which Cognito pool NEW users will be created in, sourced from
+          Customers.<brand.slug>.cognito_pool.user_pool_id via brand-
+          config. When the customer has no per-customer pool set, we
+          call out the legacy fallback explicitly so the admin isn't
+          surprised by cross-pool routing. Existing-user sends/mints
+          still fire against whichever pool the target email already
+          lives in — the reverse-index lookup wins on those. */}
+      <div style={{
+        padding: '10px 14px', borderRadius: 6,
+        background: brand?.cognito_pool_id ? '#0f2237' : '#2a1e05',
+        border: `1px solid ${brand?.cognito_pool_id ? '#1e3a8a' : '#78350f'}`,
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12,
+      }}>
+        <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af', fontWeight: 600 }}>
+          Target Cognito pool
+        </span>
+        <code style={{
+          fontSize: 13, background: '#0f172a', color: brand?.cognito_pool_id ? '#93c5fd' : '#fbbf24',
+          padding: '3px 8px', borderRadius: 4, fontWeight: 600,
+        }}>
+          {brand?.cognito_pool_id || 'legacy (F2 default)'}
+        </code>
+        <span style={{ fontSize: 11, color: '#9ca3af' }}>
+          for customer <b style={{ color: '#e5e7eb' }}>{brand?.slug || '(unresolved)'}</b>
+          {brand?.name && brand?.name !== brand?.slug && ` (${brand.name})`}
+        </span>
+        {!brand?.cognito_pool_id && (
+          <span style={{ fontSize: 11, color: '#fbbf24' }}>
+            — no per-customer pool in Customers.{brand?.slug || '?'}.cognito_pool
+          </span>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>
+          Invite host: <code style={{ background: '#0f172a', color: '#cbd5e1', padding: '2px 6px', borderRadius: 3 }}>{inviteHost || '(none)'}</code>
+        </span>
+      </div>
+
       {loadErr && (
         <div style={{ padding: 10, background: '#3f1a1a', border: '1px solid #7f1d1d', borderRadius: 4, color: '#fecaca', fontSize: 13 }}>
           {loadErr}
@@ -447,9 +484,6 @@ export function OnboardingPanel() {
           )}
           <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>
             Customer scope: {customers.length ? customers.join(', ') : '(none — set below)'}
-            {brand?.cognito_pool_id
-              ? ` · pool ${brand.cognito_pool_id}`
-              : ' · legacy pool (customer has no cognito_pool set in SoT)'}
           </span>
         </div>
 
