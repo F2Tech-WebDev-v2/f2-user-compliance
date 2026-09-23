@@ -712,7 +712,33 @@ export function ExchangeAgreementReview() {
 
       {err && <div style={{ padding: 10, background: '#3f1a1a', border: '1px solid #7f1d1d', borderRadius: 4, color: '#fecaca', fontSize: 13 }}>Error: {err}</div>}
 
-      <div className="ag-theme-quartz ag-theme-quartz-dark" data-ag-theme-mode="dark" style={{ flex: 1, minHeight: 400 }}>
+      {/* Ag-grid v33 quartz — the class-level dark overrides in the
+         library get outranked by an earlier `[class*=ag-theme-]` rule
+         setting `--ag-background-color: #fff` in Mike's browser, so we
+         pin the vars inline where specificity always wins. */}
+      <div
+        className="ag-theme-quartz ag-theme-quartz-dark"
+        style={{
+          flex: 1, minHeight: 400,
+          ['--ag-background-color' as any]: '#0b0f19',
+          ['--ag-foreground-color' as any]: '#e5e7eb',
+          ['--ag-header-background-color' as any]: '#111827',
+          ['--ag-header-foreground-color' as any]: '#cbd5e1',
+          ['--ag-odd-row-background-color' as any]: '#0f1524',
+          ['--ag-row-hover-color' as any]: '#172033',
+          ['--ag-selected-row-background-color' as any]: '#1e3a8a55',
+          ['--ag-border-color' as any]: '#1f2937',
+          ['--ag-secondary-border-color' as any]: '#1f2937',
+          ['--ag-panel-background-color' as any]: '#0f172a',
+          ['--ag-menu-background-color' as any]: '#0f172a',
+          ['--ag-control-panel-background-color' as any]: '#111827',
+          ['--ag-input-focus-border-color' as any]: '#60a5fa',
+          ['--ag-checkbox-checked-color' as any]: '#60a5fa',
+          ['--ag-checkbox-unchecked-color' as any]: '#4b5563',
+          ['--ag-input-border-color' as any]: '#374151',
+          ['--ag-invalid-color' as any]: '#f87171',
+        }}
+      >
         <AgGridReact<ExhibitRow>
           rowData={filtered}
           columnDefs={colDefs}
