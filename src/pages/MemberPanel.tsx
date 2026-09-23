@@ -84,7 +84,7 @@ export function MemberPanel() {
       const lookBody = await lookRes.json();
       const pools: LookupPool[] = Array.isArray(lookBody?.pools) ? lookBody.pools : (Array.isArray(lookBody) ? lookBody : []);
       if (pools.length === 0) {
-        throw new Error(`Template user not found in any Cognito pool. Only members already provisioned in ${brandLabel}'s pool can be used as a template here.`);
+        throw new Error(`Template user not found. Only existing ${brandLabel} members can be used as a template here.`);
       }
 
       // c/07dc9567 — restrict template pick to the branded customer's
@@ -95,8 +95,7 @@ export function MemberPanel() {
       if (targetPoolId) {
         picked = pools.find((p) => (p?.pool_id || '').trim() === targetPoolId) || null;
         if (!picked) {
-          const other = pools.map((p) => p?.pool_nickname || p?.pool_id || '?').filter(Boolean).join(', ');
-          throw new Error(`Template user isn't in ${brandLabel}'s Cognito pool (${targetPoolId}). Found in: ${other || 'unknown pool'}. Pick a template user provisioned under this customer.`);
+          throw new Error(`Template user isn't a ${brandLabel} member. Pick a template user provisioned under this customer.`);
         }
       } else {
         // No per-customer pool set on this brand yet — accept the
@@ -175,7 +174,7 @@ export function MemberPanel() {
       <div>
         <h1 style={{ margin: 0, fontSize: 20 }}>{brandLabel} — Member Bulk Invite</h1>
         <p style={{ margin: '6px 0 0', fontSize: 13, color: '#9ca3af' }}>
-          Enter an existing {brandLabel} member&rsquo;s email to see the scanners they&rsquo;re entitled to, pick a subset, then paste the recipient emails to invite. Each recipient is planted directly in <b>{brandLabel}&rsquo;s</b> Cognito pool and gets a magic-link invite branded to this domain.
+          Enter an existing {brandLabel} member&rsquo;s email to see the scanners they&rsquo;re entitled to, pick a subset, then paste the recipient emails to invite. Each recipient is provisioned as a <b>{brandLabel}</b> member and gets a magic-link invite branded to this domain.
         </p>
       </div>
 

@@ -440,7 +440,7 @@ export function OnboardingPanel() {
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12,
       }}>
         <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af', fontWeight: 600 }}>
-          Target Cognito pool
+          Target user pool
         </span>
         <code style={{
           fontSize: 13, background: '#0f172a', color: brand?.cognito_pool_id ? '#93c5fd' : '#fbbf24',
@@ -454,7 +454,7 @@ export function OnboardingPanel() {
         </span>
         {!brand?.cognito_pool_id && (
           <span style={{ fontSize: 11, color: '#fbbf24' }}>
-            — no per-customer pool in Customers.{brand?.slug || '?'}.cognito_pool
+            — no per-customer pool configured for {brand?.slug || '(unresolved)'}
           </span>
         )}
         <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>

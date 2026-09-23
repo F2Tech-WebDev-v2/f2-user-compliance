@@ -68,7 +68,7 @@ const NAV_ITEMS: NavItem[] = [
     // simultaneous-access prevention (live-session displacement).
     subs: [
       { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel)', src: null, kind: 'agreement-review' },
-      { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user (Cognito)',   title: 'Admin · Users panel — enable/modify/remove NYSE entitlements directly on the Cognito user', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+      { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Admin · Users panel — enable/modify/remove NYSE entitlements directly on the user record', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
       { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'F2 Gap Up / Down — open in a second tab to trigger the displaced state', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
     ],
   },
