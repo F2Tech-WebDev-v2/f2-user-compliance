@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { AccountMenu } from 'f2tech-shared/account-menu';
 import { Dashboard } from './pages/Dashboard';
@@ -193,23 +193,35 @@ export function App() {
       return { parent: 0, sub: null };
     }
   });
+  // c/5c731529 + c/5e6ab3a0 — queryDefaults semantics:
+  //   • First render (mount): don't clobber params the user pasted
+  //     explicitly (deep-link deserves to win).
+  //   • Subsequent renders (nav-click state change): ALWAYS overwrite
+  //     so clicking "Admin · edit user" switches ?status=all even when
+  //     the previous sub had ?status=pending. Mike c/5e6ab3a0:
+  //     "when i click on admin- edit user i need the filter of the
+  //     panel to switch to all users".
+  const isFirstNavRun = useRef(true);
   useEffect(() => {
     try {
       const slug = slugFromSelection(sel);
       const url = new URL(window.location.href);
       if (!slug || slug === 'overview') url.searchParams.delete('tab');
       else url.searchParams.set('tab', slug);
-      // c/5c731529 — apply per-nav-item queryDefaults ONLY when the
-      // param isn't already in the URL. Lets sub-items preset filters
-      // (e.g. ?status=all on Admin · edit user) without clobbering a
-      // deep-link the user pasted in explicitly.
       const activeNav = activeItem(sel);
       const defaults = activeNav?.queryDefaults;
       if (defaults) {
         for (const [k, v] of Object.entries(defaults)) {
-          if (!url.searchParams.has(k)) url.searchParams.set(k, v);
+          if (isFirstNavRun.current) {
+            // Deep-link: keep user-explicit param.
+            if (!url.searchParams.has(k)) url.searchParams.set(k, v);
+          } else {
+            // Nav click: force the sub's default.
+            url.searchParams.set(k, v);
+          }
         }
       }
+      isFirstNavRun.current = false;
       const next = url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash;
       window.history.replaceState(null, '', next);
     } catch { /* best-effort */ }
