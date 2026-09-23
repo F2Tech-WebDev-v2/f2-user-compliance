@@ -1,36 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 /**
  * IT-F2-421 c/339ac8f0 (Mike 2026-09-23): Live-session displacement
- * demo. Splits the main panel into two side-by-side credentialless
- * iframes both pointing at f2-gap-up-down. The auditor logs the same
- * user into both frames — the second login triggers backend
- * displacement, which pushes the "displaced" chip + banner into the
- * first frame while the second stays live.
+ * demo. Splits the main panel into two side-by-side iframes both
+ * pointing at f2-gap-up-down. The auditor logs the same user into
+ * both frames — the second login triggers backend displacement,
+ * which pushes the "displaced" chip + banner into the first frame
+ * while the second stays live.
  *
- * Credentialless iframes each get their own opaque browsing context
- * (no shared cookies with the parent OR each other), so the two
- * frames behave like two independent incognito windows. The
- * displacement machinery is WebSocket-broadcast keyed by the logged-
- * in user identity — cookie isolation between frames doesn't defeat
- * it. Both frames must be authenticated as the SAME test user for
- * the demo to fire.
+ * c/61e5a3f5 — dropped the credentialless / disableCookies isolation;
+ * plain iframes now.
  */
 
 const SCANNER_URL = 'https://scanners.f2-tech.ai/scans/f2-gap-up-down';
 
 function FrameCard({ side }: { side: 'A' | 'B' }) {
   const [nonce, setNonce] = useState(0);
-  // c/03512c28 — imperative attribute set for guaranteed anonymous-
-  // browsing partition (see AcceptInvitePanel for the same pattern).
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  useEffect(() => {
-    const el = iframeRef.current;
-    if (!el) return;
-    el.setAttribute('credentialless', '');
-    // c/8a1b276c — Firefox-specific opt-out of the ambient cookie jar.
-    (el as any).disableCookies = true;
-  }, [nonce]);
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: side === 'A' ? '1px solid #1f2937' : 'none' }}>
       <div style={{
@@ -59,12 +44,10 @@ function FrameCard({ side }: { side: 'A' | 'B' }) {
       </div>
       <div style={{ flex: 1, minHeight: 0, background: '#0b0f19' }}>
         <iframe
-          ref={iframeRef}
           src={SCANNER_URL}
           key={`${side}#${nonce}`}
           title={`Live-displacement demo · Frame ${side}`}
           style={{ width: '100%', height: '100%', border: 0, background: 'white' }}
-          referrerPolicy="no-referrer"
         />
       </div>
     </div>

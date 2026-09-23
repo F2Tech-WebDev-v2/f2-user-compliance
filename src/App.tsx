@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { AccountMenu } from 'f2tech-shared/account-menu';
 import { Dashboard } from './pages/Dashboard';
@@ -36,13 +36,6 @@ type NavItem = {
   kind?: NavKind;
   slug: string; // stable URL slug per tab (?tab=<slug>) for hard-refresh
   subs?: NavItem[]; // c/feafab54 — nested sub-navigation
-  // c/e64bc63f (Mike 2026-09-23) — when true, render the iframe with
-  // the `credentialless` attribute so the embedded page runs in an
-  // isolated browsing context (no cookies / localStorage bleed from
-  // the currently-signed-in dashboard). Used for surfaces where the
-  // demo needs a fresh session (login → then app), e.g. the Gap Up /
-  // Down scanner or the displacement demo.
-  credentialless?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -67,7 +60,7 @@ const NAV_ITEMS: NavItem[] = [
     // set-password + first-name/last-name flow."
     subs: [
       { n: null, slug: 'onboarding-bulk-invite',   label: 'Bulk-invite (this app)',        title: 'Bulk-invite recipients — send email or copy magic link per user', src: null, kind: 'onboarding' },
-      { n: null, slug: 'onboarding-admin-users',   label: 'Admin Users panel',             title: 'Admin · Users (bulk-add / add-user modal)', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+      { n: null, slug: 'onboarding-admin-users',   label: 'Admin Users panel',             title: 'Exchange Agreement Review — same native panel that step-3 uses (per Mike c/b180b04c)', src: null, kind: 'agreement-review' },
       { n: null, slug: 'onboarding-accept-invite', label: 'Set password + name (invitee)', title: 'Paste an invite magic link → run the set-password + name flow in an isolated frame', src: null, kind: 'accept-invite' },
     ],
   },
@@ -80,8 +73,8 @@ const NAV_ITEMS: NavItem[] = [
     // simultaneous-access prevention (live-session displacement).
     subs: [
       { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel)', src: null, kind: 'agreement-review' },
-      { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Admin · Users panel — enable/modify/remove NYSE entitlements directly on the user record', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
-      { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'Two side-by-side isolated frames of the Gap Up / Down scanner — log the same user into both to demo displacement', src: null, kind: 'displacement-demo' },
+      { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Exchange Agreement Review — same native panel (per Mike c/b180b04c)', src: null, kind: 'agreement-review' },
+      { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'Two side-by-side frames of the Gap Up / Down scanner — log the same user into both to demo displacement', src: null, kind: 'displacement-demo' },
     ],
   },
 
@@ -106,7 +99,7 @@ const NAV_ITEMS: NavItem[] = [
     // Network A + B) with tier + scanner catalog + live/delayed
     // indicators.
     subs: [
-      { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down (F2 market-data scanner) — live/delayed data chip + realtime rows. Loads in an isolated frame so you see the login → scanner flow fresh.', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe', credentialless: true },
+      { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down (F2 market-data scanner) — live/delayed data chip + realtime rows', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
       { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Members portal — scanner catalog + tier chip surface', src: 'https://members.f2-tech.ai/f2', kind: 'iframe' },
     ],
   },
@@ -372,7 +365,12 @@ export function App() {
           ) : active.kind === 'displacement-demo' ? (
             <DisplacementDemoPanel />
           ) : (
-            <NavIframe src={active.src!} title={active.title} credentialless={!!active.credentialless} />
+            <iframe
+              src={active.src!}
+              title={active.title}
+              key={active.src}
+              style={{ flex: 1, width: '100%', border: 0, background: 'white' }}
+            />
           )}
         </main>
       </div>
@@ -419,33 +417,3 @@ function AccountCoin() {
   );
 }
 
-// c/03512c28 (Mike 2026-09-23) — generic nav iframe that imperatively
-// sets `credentialless` when the nav item asked for it. Ref-based
-// setAttribute lands the attribute independent of React's typed prop-
-// passthrough (some builds warn on unknown lowercase attrs but still
-// forward them; some don't). Anonymous browsing partition is what
-// prevents the iframe's cookies + storage from bleeding into the
-// parent tab's cookie jar.
-function NavIframe({ src, title, credentialless }: { src: string; title: string; credentialless: boolean }) {
-  const ref = useRef<HTMLIFrameElement | null>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    if (credentialless) ref.current.setAttribute('credentialless', '');
-    else ref.current.removeAttribute('credentialless');
-    // c/8a1b276c (Mike 2026-09-23) — Firefox-specific JS property that
-    // opts the frame out of the ambient cookie jar. Belt-and-suspenders
-    // alongside credentialless which is Chromium-first. No-op on
-    // browsers that don't recognize it.
-    (ref.current as any).disableCookies = !!credentialless;
-  }, [src, credentialless]);
-  return (
-    <iframe
-      ref={ref}
-      src={src}
-      title={title}
-      key={src}
-      style={{ flex: 1, width: '100%', border: 0, background: 'white' }}
-      referrerPolicy={credentialless ? 'no-referrer' : undefined}
-    />
-  );
-}

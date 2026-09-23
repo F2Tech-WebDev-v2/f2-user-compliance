@@ -1,18 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 /**
  * IT-F2-421 c/077182bf (Mike 2026-09-23): Set-password panel — paste-a-
- * magic-link box at the top; loading the pasted URL renders the accept-
- * invite / set-password flow in a credentialless iframe below so the
- * demo runs in a fresh browser context (no leaked cookies from the
- * currently-signed-in admin session in the parent tab).
+ * magic-link box at the top; the pasted URL loads in the iframe below.
  *
- * "Credentialless" iframes strip storage + cookies for the embedded
- * origin — required here because the compliance dashboard is already
- * authenticated at members.f2-tech.ai / scanners.f2-tech.ai, and
- * without isolation the pasted magic-link's redeem step would collide
- * with the parent's session cookies and land the demo user on the
- * signed-in dashboard instead of the set-password wizard.
+ * c/61e5a3f5 (Mike 2026-09-23): dropped the private-iframe (credential-
+ * less / disableCookies) treatment. Cross-browser isolation for a same-
+ * eTLD+1 embed is a browser-version minefield (Firefox pre-138 ignores
+ * credentialless, Safari doesn't ship it, Chrome partitions same-site
+ * frames but only with the attribute set); Mike accepted that the demo
+ * runs with the parent-tab session flowing in. Panel structure is
+ * unchanged — just a plain iframe now.
  */
 
 // Whitelist the origins that legitimately serve magic-link URLs so a
@@ -37,28 +35,8 @@ export function AcceptInvitePanel() {
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   // Bump this to force-remount the iframe when the operator wants to
-  // re-run the demo without changing the URL (e.g. after landing on
-  // the wrong step in the flow). React keys off it via `key`.
+  // re-run the demo without changing the URL. React keys off it via `key`.
   const [reloadNonce, setReloadNonce] = useState(0);
-
-  // c/03512c28 (Mike 2026-09-23) — belt-and-suspenders attribute set.
-  // Some React 18 builds warn on unknown lowercase DOM props even
-  // though the attribute still lands; explicit setAttribute on mount
-  // guarantees the browser sees `credentialless` regardless of prop-
-  // passing behavior. Anonymous-browsing partition is what stops the
-  // iframe's cookies + storage from leaking into the parent tab.
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  useEffect(() => {
-    const el = iframeRef.current;
-    if (!el) return;
-    el.setAttribute('credentialless', '');
-    // c/8a1b276c (Mike 2026-09-23) — also set the JS `disableCookies`
-    // property; Firefox honors this on iframe elements to opt the
-    // frame out of the ambient cookie jar (independent of
-    // credentialless which is Chromium-first). No-op on browsers that
-    // don't recognize it.
-    (el as any).disableCookies = true;
-  }, [loadedUrl, reloadNonce]);
 
   const load = () => {
     const v = isAllowedMagicLinkUrl(pasted);
@@ -110,7 +88,7 @@ export function AcceptInvitePanel() {
           )}
         </div>
         <div style={{ fontSize: 11, color: '#9ca3af' }}>
-          The pasted link opens below in an isolated (credentialless) iframe so the demo runs in a fresh browser context — no bleed from the dashboard&rsquo;s current session.
+          The pasted link opens below in the panel iframe.
         </div>
         {err && (
           <div style={{ padding: 8, background: '#3f1a1a', border: '1px solid #7f1d1d', borderRadius: 4, color: '#fecaca', fontSize: 12 }}>
@@ -121,14 +99,10 @@ export function AcceptInvitePanel() {
       <div style={{ flex: 1, minHeight: 0, background: '#0b0f19', position: 'relative' }}>
         {loadedUrl ? (
           <iframe
-            ref={iframeRef}
-            // credentialless is set imperatively in the effect above so
-            // it lands regardless of React's typed-prop passthrough.
             src={loadedUrl}
             key={`${loadedUrl}#${reloadNonce}`}
             title="Set-password / accept-invite flow"
             style={{ width: '100%', height: '100%', border: 0, background: 'white' }}
-            referrerPolicy="no-referrer"
           />
         ) : (
           <div style={{
