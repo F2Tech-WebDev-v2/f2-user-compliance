@@ -61,7 +61,7 @@ const NAV_ITEMS: NavItem[] = [
     // set-password + first-name/last-name flow."
     subs: [
       { n: null, slug: 'onboarding-bulk-invite',   label: 'Bulk-invite (this app)',        title: 'Bulk-invite recipients — send email or copy magic link per user', src: null, kind: 'onboarding' },
-      { n: null, slug: 'onboarding-admin-users',   label: 'Admin Users panel',             title: 'Exchange Agreement Review — same native panel that step-3 uses (per Mike c/b180b04c)', src: null, kind: 'agreement-review' },
+      { n: null, slug: 'onboarding-admin-users',   label: 'Admin Users panel',             title: 'F2 Compliance Report — Users tab (exhibit-b row source) via scanners.f2-tech.ai/scans/f2-compliance-report', src: 'https://scanners.f2-tech.ai/scans/f2-compliance-report', kind: 'iframe' },
       { n: null, slug: 'onboarding-accept-invite', label: 'Set password + name (invitee)', title: 'Paste an invite magic link → run the set-password + name flow in an isolated frame', src: null, kind: 'accept-invite' },
     ],
   },
