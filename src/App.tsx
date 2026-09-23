@@ -81,7 +81,7 @@ const NAV_ITEMS: NavItem[] = [
     // Step 3 body: per-user permissioning (enable/modify/remove) +
     // simultaneous-access prevention (live-session displacement).
     subs: [
-      { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel)', src: null, kind: 'agreement-review' },
+      { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel) — filters on pending', src: null, kind: 'agreement-review', queryDefaults: { status: 'pending' } },
       { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Exchange Agreement Review — full user list (per Mike c/5c731529: preset status=all)', src: null, kind: 'agreement-review', queryDefaults: { status: 'all' } },
       { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'Two side-by-side frames of the Gap Up / Down scanner — log the same user into both to demo displacement', src: null, kind: 'displacement-demo' },
     ],

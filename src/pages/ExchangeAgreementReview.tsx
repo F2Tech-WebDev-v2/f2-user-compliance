@@ -172,11 +172,16 @@ export function ExchangeAgreementReview() {
   });
   // Write both filters back to the URL on change (replaceState, no
   // history spam). Sibling tab params like ?tab= are preserved.
+  //
+  // c/a33ad6b1 (Mike 2026-09-23) — always keep `status=` in the URL,
+  // even for the default 'pending' value. Mike explicitly wants the
+  // filter state fully visible so a link is unambiguous about which
+  // filter the recipient will land on. Empty `q` is still stripped
+  // since a query of "" reads as "no filter" and clutters the URL.
   useEffect(() => {
     try {
       const url = new URL(window.location.href);
-      if (reviewFilter === 'pending') url.searchParams.delete('status');
-      else url.searchParams.set('status', reviewFilter);
+      url.searchParams.set('status', reviewFilter);
       if (!searchQuery) url.searchParams.delete('q');
       else url.searchParams.set('q', searchQuery);
       const next = url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash;
