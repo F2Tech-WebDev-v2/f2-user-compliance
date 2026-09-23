@@ -128,7 +128,7 @@ export function ExchangeAgreementReview() {
   const [rows, setRows] = useState<ExhibitRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [asOf, setAsOf] = useState<string>('');
+  const [, setAsOf] = useState<string>('');
   const [brand, setBrand] = useState<Brand | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkReason, setBulkReason] = useState('');
@@ -456,7 +456,6 @@ export function ExchangeAgreementReview() {
     const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
     api.exportDataAsCsv({
       fileName: `agreement-review-${reviewFilter}-${stamp}.csv`,
-      onlySelectedAllFiltered: false,
       allColumns: false,
     });
     showToast('ok', 'CSV export downloaded.');
