@@ -37,9 +37,12 @@ export function AdminComplianceReportPanel() {
     return () => { cancelled = true; };
   }, []);
 
-  const url = brand?.isCustomerBrand && brand?.slug
-    ? `${ADMIN_URL_BASE}?customers=${encodeURIComponent(brand.slug)}`
-    : ADMIN_URL_BASE;
+  // c/8dee8450 (Mike 2026-09-23) — chromeless mode via ?stroute=1
+  // hides admin app's sidebar + F2 top title bar (auth.service.ts:283).
+  const qs = new URLSearchParams();
+  qs.set('stroute', '1');
+  if (brand?.isCustomerBrand && brand?.slug) qs.set('customers', brand.slug);
+  const url = `${ADMIN_URL_BASE}?${qs.toString()}`;
 
   return (
     <iframe
