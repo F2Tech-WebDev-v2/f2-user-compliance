@@ -7,6 +7,7 @@ import { ExchangeAgreementReview } from './pages/ExchangeAgreementReview';
 import { OnboardingPanel } from './pages/OnboardingPanel';
 import { AcceptInvitePanel } from './pages/AcceptInvitePanel';
 import { DisplacementDemoPanel } from './pages/DisplacementDemoPanel';
+import { ScannerHandoffPanel } from './pages/ScannerHandoffPanel';
 import { useMe } from './api/me';
 import { setTokenBundle } from './auth/session';
 
@@ -26,7 +27,7 @@ import { setTokenBundle } from './auth/session';
  * cookie/session.
  */
 
-type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite' | 'displacement-demo';
+type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite' | 'displacement-demo' | 'scanner-handoff';
 
 type NavItem = {
   n: number | string | null; // null = overview / no bubble; number = agenda step; string = special (e.g. 'M' for Member)
@@ -99,7 +100,7 @@ const NAV_ITEMS: NavItem[] = [
     // Network A + B) with tier + scanner catalog + live/delayed
     // indicators.
     subs: [
-      { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down (F2 market-data scanner) — live/delayed data chip + realtime rows', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
+      { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down — loads via a fresh scanner-sid so the frame skips the login prompt entirely', src: 'f2-gap-up-down', kind: 'scanner-handoff' },
       { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Members portal — scanner catalog + tier chip surface', src: 'https://members.f2-tech.ai/f2', kind: 'iframe' },
     ],
   },
@@ -364,6 +365,8 @@ export function App() {
             <AcceptInvitePanel />
           ) : active.kind === 'displacement-demo' ? (
             <DisplacementDemoPanel />
+          ) : active.kind === 'scanner-handoff' ? (
+            <ScannerHandoffPanel scannerId={active.src!} title={active.title} />
           ) : (
             <iframe
               src={active.src!}
