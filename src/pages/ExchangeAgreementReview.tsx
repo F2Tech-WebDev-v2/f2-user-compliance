@@ -1,12 +1,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import {
-  AllCommunityModule, ModuleRegistry, type ColDef, type GridApi,
+  AllCommunityModule, ModuleRegistry,
+  themeBalham, colorSchemeDark,
+  type ColDef, type GridApi,
 } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-quartz.css';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Programmatic v33 theme — same pattern the Angular admin uses in
+// @shared/ag-grid-themes.ts. Beats the class-based dark path (which
+// keeps losing the cascade to ag-grid's own [class*=ag-theme-] rule).
+const AG_DARK_THEME = themeBalham
+  .withPart(colorSchemeDark)
+  .withParams({
+    backgroundColor: '#0b0f19',
+    foregroundColor: '#e5e7eb',
+    accentColor: '#60a5fa',
+    headerTextColor: '#cbd5e1',
+    headerFontSize: 13,
+    headerBackgroundColor: '#111827',
+    oddRowBackgroundColor: 'rgba(255, 255, 255, 0.03)',
+    spacing: '4px',
+    wrapperBorderRadius: 2,
+    fontSize: 13,
+    wrapperBorder: true,
+    headerRowBorder: false,
+    rowBorder: false,
+  });
 
 /**
  * IT-F2-416 c/c53f1818 + c/0995933e + c/13c6a6cb + c/f788ab2e + c/69941d2d
@@ -712,34 +733,9 @@ export function ExchangeAgreementReview() {
 
       {err && <div style={{ padding: 10, background: '#3f1a1a', border: '1px solid #7f1d1d', borderRadius: 4, color: '#fecaca', fontSize: 13 }}>Error: {err}</div>}
 
-      {/* Ag-grid v33 quartz — the class-level dark overrides in the
-         library get outranked by an earlier `[class*=ag-theme-]` rule
-         setting `--ag-background-color: #fff` in Mike's browser, so we
-         pin the vars inline where specificity always wins. */}
-      <div
-        className="ag-theme-quartz ag-theme-quartz-dark"
-        style={{
-          flex: 1, minHeight: 400,
-          ['--ag-background-color' as any]: '#0b0f19',
-          ['--ag-foreground-color' as any]: '#e5e7eb',
-          ['--ag-header-background-color' as any]: '#111827',
-          ['--ag-header-foreground-color' as any]: '#cbd5e1',
-          ['--ag-odd-row-background-color' as any]: '#0f1524',
-          ['--ag-row-hover-color' as any]: '#172033',
-          ['--ag-selected-row-background-color' as any]: '#1e3a8a55',
-          ['--ag-border-color' as any]: '#1f2937',
-          ['--ag-secondary-border-color' as any]: '#1f2937',
-          ['--ag-panel-background-color' as any]: '#0f172a',
-          ['--ag-menu-background-color' as any]: '#0f172a',
-          ['--ag-control-panel-background-color' as any]: '#111827',
-          ['--ag-input-focus-border-color' as any]: '#60a5fa',
-          ['--ag-checkbox-checked-color' as any]: '#60a5fa',
-          ['--ag-checkbox-unchecked-color' as any]: '#4b5563',
-          ['--ag-input-border-color' as any]: '#374151',
-          ['--ag-invalid-color' as any]: '#f87171',
-        }}
-      >
+      <div style={{ flex: 1, minHeight: 400 }}>
         <AgGridReact<ExhibitRow>
+          theme={AG_DARK_THEME}
           rowData={filtered}
           columnDefs={colDefs}
           defaultColDef={defaultColDef}
