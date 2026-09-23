@@ -610,14 +610,14 @@ export function ExchangeAgreementReview() {
   const approveDisabled = bulkBusy || selCount === 0;
   const reevalDisabled  = bulkBusy || selCount === 0;
 
-  const scopeLabel = brand?.isCustomerBrand && brand?.slug
-    ? `scoped to ${brand.name || brand.slug}`
-    : 'fleet-wide';
-
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0, flex: 1, color: '#e5e7eb', background: '#0b1220' }}>
       <div>
-        <h1 style={{ margin: 0, fontSize: 20 }}>Exchange Agreement Review</h1>
+        <h1 style={{ margin: 0, fontSize: 20 }}>
+          {brand?.isCustomerBrand && brand?.slug
+            ? `${brand.name || brand.slug} — Exchange Agreement Review`
+            : 'Exchange Agreement Review'}
+        </h1>
         <p style={{ margin: '4px 0 0', fontSize: 12, color: '#9ca3af' }}>
           Approve grants live data (Cognito <code>custom:live_data_access</code> flip); decline revokes it and reverts to delayed-data mode. All decisions land in <code>F2-ADMIN.ReviewAudit</code>. Panel updates live from any admin.
         </p>
@@ -660,11 +660,12 @@ export function ExchangeAgreementReview() {
         <span><b style={{ color: '#fbbf24' }}>{pending}</b> <span style={{ color: '#9ca3af' }}>pending</span></span>
         <span><b style={{ color: '#34d399' }}>{approved}</b> <span style={{ color: '#9ca3af' }}>approved</span></span>
         <span><b style={{ color: '#f87171' }}>{declined}</b> <span style={{ color: '#9ca3af' }}>declined</span></span>
-        <span style={{
-          display: 'inline-block', padding: '2px 8px', borderRadius: 4,
-          background: brand?.isCustomerBrand ? '#1e3a8a' : '#334155',
-          color: '#e5e7eb', fontSize: 11, fontWeight: 600,
-        }}>{scopeLabel}</span>
+        {!brand?.isCustomerBrand && (
+          <span style={{
+            display: 'inline-block', padding: '2px 8px', borderRadius: 4,
+            background: '#334155', color: '#e5e7eb', fontSize: 11, fontWeight: 600,
+          }}>fleet-wide</span>
+        )}
         <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
           <button type="button" onClick={() => void load()} disabled={loading} style={_btn('#374151', loading)}>
             ⟳ Refresh
