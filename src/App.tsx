@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { MemberPanel } from './pages/MemberPanel';
 import { ExchangeAgreementReview } from './pages/ExchangeAgreementReview';
+import { OnboardingPanel } from './pages/OnboardingPanel';
 
 /**
  * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e:
@@ -21,7 +22,7 @@ type NavItem = {
   label: string;
   title: string;
   src: string | null; // null = render local component
-  kind?: 'overview' | 'member' | 'iframe' | 'agreement-review';
+  kind?: 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding';
   // IT-F2-416 c/10219ddd — stable URL slug per tab so hard-refresh
   // (?tab=<slug>) restores selection.
   slug: string;
@@ -30,7 +31,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { n: null, slug: 'overview',    label: 'Overview',                    title: 'Walkthrough overview',                     src: null, kind: 'overview' },
   { n: 1,    slug: 'data-flow',   label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe' },
-  { n: 2,    slug: 'onboarding',  label: 'Onboarding Process',          title: 'Admin · Users panel',                     src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+  { n: 2,    slug: 'onboarding',  label: 'Onboarding Process',          title: 'Bulk-invite recipients — send email or copy magic link per user', src: null, kind: 'onboarding' },
   { n: 3,    slug: 'entitlement', label: 'Entitlement System',          title: 'Exchange Agreement Review (native React port)',       src: null, kind: 'agreement-review' },
   { n: 4,    slug: 'reporting',   label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
   { n: 5,    slug: 'application', label: 'Application(s)',              title: 'F2 Gap Up / Down (F2 market-data scanner)', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
@@ -154,6 +155,8 @@ export function App() {
             </div>
           ) : active.kind === 'agreement-review' ? (
             <ExchangeAgreementReview />
+          ) : active.kind === 'onboarding' ? (
+            <OnboardingPanel />
           ) : (
             <iframe
               src={active.src!}
