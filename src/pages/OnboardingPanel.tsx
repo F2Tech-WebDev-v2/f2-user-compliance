@@ -40,6 +40,8 @@ type Me = {
   [k: string]: any;
 };
 
+type Brand = { slug: string; name?: string; isCustomerBrand?: boolean };
+
 type RowState = 'idle' | 'sending' | 'copying' | 'sent' | 'copied' | 'error';
 
 type Row = {
@@ -66,12 +68,28 @@ function scanName(s: Scanner): string {
 export function OnboardingPanel() {
   const [me, setMe] = useState<Me | null>(null);
   const [scanners, setScanners] = useState<Scanner[]>([]);
+  const [brand, setBrand] = useState<Brand | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [scannerFilter, setScannerFilter] = useState('');
   const [emails, setEmails] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const host = window.location.hostname;
+        const res = await fetch(`/rest/api/brand-config?host=${encodeURIComponent(host)}`);
+        if (!res.ok) return;
+        const body = await res.json();
+        if (cancelled) return;
+        if (body && typeof body.slug === 'string') setBrand(body as Brand);
+      } catch { /* no-op */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,7 +250,11 @@ export function OnboardingPanel() {
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0, flex: 1, color: '#e5e7eb', background: '#0b1220', overflow: 'auto' }}>
       <div>
-        <h1 style={{ margin: 0, fontSize: 20 }}>Onboarding — Bulk Invite</h1>
+        <h1 style={{ margin: 0, fontSize: 20 }}>
+          {brand?.isCustomerBrand && brand?.slug
+            ? `${brand.name || brand.slug} — Onboarding Members — Bulk Invite`
+            : 'Onboarding Members — Bulk Invite'}
+        </h1>
         <p style={{ margin: '4px 0 0', fontSize: 12, color: '#9ca3af' }}>
           Pick the scanner(s) to grant, paste a list of recipient emails, then use the per-row buttons to either send the branded magic-link email or copy the invite URL to your clipboard (for Slack / SMS / manual handoff).
         </p>
