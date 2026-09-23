@@ -49,7 +49,15 @@ export function AcceptInvitePanel() {
   // iframe's cookies + storage from leaking into the parent tab.
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   useEffect(() => {
-    if (iframeRef.current) iframeRef.current.setAttribute('credentialless', '');
+    const el = iframeRef.current;
+    if (!el) return;
+    el.setAttribute('credentialless', '');
+    // c/8a1b276c (Mike 2026-09-23) — also set the JS `disableCookies`
+    // property; Firefox honors this on iframe elements to opt the
+    // frame out of the ambient cookie jar (independent of
+    // credentialless which is Chromium-first). No-op on browsers that
+    // don't recognize it.
+    (el as any).disableCookies = true;
   }, [loadedUrl, reloadNonce]);
 
   const load = () => {

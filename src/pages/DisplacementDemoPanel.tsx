@@ -25,7 +25,11 @@ function FrameCard({ side }: { side: 'A' | 'B' }) {
   // browsing partition (see AcceptInvitePanel for the same pattern).
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   useEffect(() => {
-    if (iframeRef.current) iframeRef.current.setAttribute('credentialless', '');
+    const el = iframeRef.current;
+    if (!el) return;
+    el.setAttribute('credentialless', '');
+    // c/8a1b276c — Firefox-specific opt-out of the ambient cookie jar.
+    (el as any).disableCookies = true;
   }, [nonce]);
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: side === 'A' ? '1px solid #1f2937' : 'none' }}>

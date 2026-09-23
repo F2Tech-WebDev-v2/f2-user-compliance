@@ -386,6 +386,11 @@ function NavIframe({ src, title, credentialless }: { src: string; title: string;
     if (!ref.current) return;
     if (credentialless) ref.current.setAttribute('credentialless', '');
     else ref.current.removeAttribute('credentialless');
+    // c/8a1b276c (Mike 2026-09-23) — Firefox-specific JS property that
+    // opts the frame out of the ambient cookie jar. Belt-and-suspenders
+    // alongside credentialless which is Chromium-first. No-op on
+    // browsers that don't recognize it.
+    (ref.current as any).disableCookies = !!credentialless;
   }, [src, credentialless]);
   return (
     <iframe
