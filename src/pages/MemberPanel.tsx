@@ -179,19 +179,11 @@ export function MemberPanel() {
         </p>
       </div>
 
-      {/* Target-pool banner — mirrors OnboardingPanel c/33e215f5 so the
-          operator sees which pool everything is scoped to before typing. */}
-      <div style={{
-        padding: '10px 12px', background: '#0b3a52', border: '1px solid #164e63',
-        borderRadius: 4, fontSize: 12, color: '#cbd5e1',
-      }}>
-        <div style={{ fontWeight: 600, color: '#e0f2fe', marginBottom: 2 }}>
-          Target pool: {brandLabel} ({targetPoolId ? <code>{targetPoolId}</code> : 'legacy fleet fallback'})
-        </div>
-        <div>
-          Both the template lookup and every invite send below are restricted to this pool. Switch branded domains (e.g. an <code>oxford-club</code> host) to target another customer.
-        </div>
-      </div>
+      {/* c/18e05246 (Mike 2026-09-23) — banner removed. Pool IDs +
+          neighbor customer names ("oxford-club") were audit-noise and
+          shouldn't ever surface in a customer-branded UI. The scoping
+          still happens (targetPoolId is read on lookup + send below);
+          it's just not narrated in the UI. */}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
