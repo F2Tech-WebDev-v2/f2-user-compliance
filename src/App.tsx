@@ -6,46 +6,132 @@ import { ExchangeAgreementReview } from './pages/ExchangeAgreementReview';
 import { OnboardingPanel } from './pages/OnboardingPanel';
 
 /**
- * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e:
- * Sidebar-nav layout matching f2-admin, PLUS: sidebar items now iframe
- * their destination inside the main panel rather than opening in a new
- * tab. Click "Data Flow & Dissemination" → iframe of the compliance-
- * review feed-routing page fills the right panel. Overview stays as
- * the default (index 0) with the walkthrough intro + note-to-reviewers.
+ * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e + c/feafab54:
+ * Sidebar-nav layout matching f2-admin; sidebar items iframe their
+ * destination inside the main panel rather than opening in a new tab.
+ * Overview stays as the default (index 0) with the walkthrough intro.
  *
- * All destination URLs still use members.f2-tech.ai handoff so the
- * embedded page can authenticate against its cookie/session.
+ * c/feafab54 (2026-09-23 Mike): expand numbered agenda steps into
+ * sub-items so the auditor can click straight to the app/panel that
+ * fulfills that step. Step 1 stays flat with a single "See diagram"
+ * sub that jumps back to Overview.
+ *
+ * All destination URLs still use members.f2-tech.ai / scanners.f2-tech.ai
+ * handoff so the embedded page can authenticate against its
+ * cookie/session.
  */
 
+type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding';
+
 type NavItem = {
-  n: number | string | null; // null = overview; number = agenda step; string = special (e.g. 'M' for Member)
+  n: number | string | null; // null = overview / no bubble; number = agenda step; string = special (e.g. 'M' for Member)
   label: string;
   title: string;
   src: string | null; // null = render local component
-  kind?: 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding';
-  // IT-F2-416 c/10219ddd — stable URL slug per tab so hard-refresh
-  // (?tab=<slug>) restores selection.
-  slug: string;
+  kind?: NavKind;
+  slug: string; // stable URL slug per tab (?tab=<slug>) for hard-refresh
+  subs?: NavItem[]; // c/feafab54 — nested sub-navigation
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { n: null, slug: 'overview',    label: 'Overview',                    title: 'Walkthrough overview',                     src: null, kind: 'overview' },
-  { n: 1,    slug: 'data-flow',   label: 'Data Flow & Dissemination',   title: 'Compliance Review · Feed Routing',        src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe' },
-  { n: 2,    slug: 'onboarding',  label: 'Onboarding Process',          title: 'Bulk-invite recipients — send email or copy magic link per user', src: null, kind: 'onboarding' },
-  { n: 3,    slug: 'entitlement', label: 'Entitlement System',          title: 'Exchange Agreement Review (native React port)',       src: null, kind: 'agreement-review' },
-  { n: 4,    slug: 'reporting',   label: 'Reporting',                   title: 'Compliance Report · Counts by Month',     src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
-  { n: 5,    slug: 'application', label: 'Application(s)',              title: 'F2 Gap Up / Down (F2 market-data scanner)', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
-  { n: 'M',  slug: 'member',      label: 'Member',                      title: 'Bulk-invite members (clone entitlements from a template user)', src: null, kind: 'member' },
+  { n: null, slug: 'overview', label: 'Overview', title: 'Walkthrough overview', src: null, kind: 'overview' },
+
+  {
+    n: 1, slug: 'data-flow', label: 'Data Flow & Dissemination',
+    title: 'Compliance Review · Feed Routing',
+    src: 'https://members.f2-tech.ai/f2/f2-compliance-review?next=/feed-routing', kind: 'iframe',
+    // Step 1 sub-nav per Mike: single "See diagram" jump back to overview.
+    subs: [
+      { n: null, slug: 'data-flow-diagram', label: 'See diagram', title: 'Walkthrough overview diagram (Dashboard)', src: null, kind: 'overview' },
+    ],
+  },
+
+  {
+    n: 2, slug: 'onboarding', label: 'Onboarding Process',
+    title: 'Bulk-invite recipients — send email or copy magic link per user',
+    src: null, kind: 'onboarding',
+    // Step 2 body: "Setup a test user via the admin Users panel
+    // (bulk-add / add-user modal), triggers the temp-password +
+    // set-password + first-name/last-name flow."
+    subs: [
+      { n: null, slug: 'onboarding-bulk-invite',   label: 'Bulk-invite (this app)',        title: 'Bulk-invite recipients — send email or copy magic link per user', src: null, kind: 'onboarding' },
+      { n: null, slug: 'onboarding-admin-users',   label: 'Admin Users panel',             title: 'Admin · Users (bulk-add / add-user modal)', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+      { n: null, slug: 'onboarding-accept-invite', label: 'Set password + name (invitee)', title: 'Members portal · accept-invite (invitee sets password + first/last name)', src: 'https://members.f2-tech.ai/accept-invite', kind: 'iframe' },
+    ],
+  },
+
+  {
+    n: 3, slug: 'entitlement', label: 'Entitlement System',
+    title: 'Exchange Agreement Review (native React port)',
+    src: null, kind: 'agreement-review',
+    // Step 3 body: per-user permissioning (enable/modify/remove) +
+    // simultaneous-access prevention (live-session displacement).
+    subs: [
+      { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel)', src: null, kind: 'agreement-review' },
+      { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user (Cognito)',   title: 'Admin · Users panel — enable/modify/remove NYSE entitlements directly on the Cognito user', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+      { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'F2 Gap Up / Down — open in a second tab to trigger the displaced state', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
+    ],
+  },
+
+  {
+    n: 4, slug: 'reporting', label: 'Reporting',
+    title: 'Compliance Report · Counts by Month',
+    src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe',
+    // Step 4 body: monthly report + who has access + audit of system
+    // changes.
+    subs: [
+      { n: null, slug: 'reporting-counts-month', label: 'Counts by Month',    title: 'Compliance Report · Counts by Month (monthly submission report)', src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
+      { n: null, slug: 'reporting-exhibit-b',    label: 'Exhibit B / SIP',    title: 'Compliance Report · Exhibit B (NYSE §9.2 Pro subscribers)', src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/exhibit-b', kind: 'iframe' },
+      { n: null, slug: 'reporting-access',       label: 'Admin access audit', title: 'Admin · Users panel (who has admin access + role)', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+    ],
+  },
+
+  {
+    n: 5, slug: 'application', label: 'Application(s)',
+    title: 'F2 Gap Up / Down (F2 market-data scanner)',
+    src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe',
+    // Step 5 body: applications displaying NYSE data products (CTA
+    // Network A + B) with tier + scanner catalog + live/delayed
+    // indicators.
+    subs: [
+      { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down (F2 market-data scanner) — live/delayed data chip + realtime rows', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
+      { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Members portal — scanner catalog + tier chip surface', src: 'https://members.f2-tech.ai/f2', kind: 'iframe' },
+    ],
+  },
+
+  { n: 'M', slug: 'member', label: 'Member', title: 'Bulk-invite members (clone entitlements from a template user)', src: null, kind: 'member' },
 ];
 
+// Flattened lookup for slug → (parentIdx, subIdx?) so URL persistence
+// resolves both top-level and sub-item slugs.
+type Selection = { parent: number; sub: number | null };
+function selectionFromSlug(slug: string | null): Selection {
+  if (!slug) return { parent: 0, sub: null };
+  for (let p = 0; p < NAV_ITEMS.length; p++) {
+    if (NAV_ITEMS[p].slug === slug) return { parent: p, sub: null };
+    const subs = NAV_ITEMS[p].subs || [];
+    for (let s = 0; s < subs.length; s++) {
+      if (subs[s].slug === slug) return { parent: p, sub: s };
+    }
+  }
+  return { parent: 0, sub: null };
+}
+function slugFromSelection(sel: Selection): string {
+  const parent = NAV_ITEMS[sel.parent];
+  if (!parent) return 'overview';
+  if (sel.sub == null) return parent.slug;
+  return parent.subs?.[sel.sub]?.slug || parent.slug;
+}
+function activeItem(sel: Selection): NavItem {
+  const parent = NAV_ITEMS[sel.parent];
+  if (sel.sub == null) return parent;
+  return parent.subs?.[sel.sub] || parent;
+}
+
 export function App() {
-  // IT-F2-416 c/006e5ad7 (Mike 2026-09-23): "the tab title says option
-  // pit??? we can NOT cross polute company names this is a f2
-  // scanners.f2-tech.ai brand not fucking option pit". Force the tab
-  // title AND favicon-link to the F2-User-Compliance identity on mount
-  // regardless of what the outer f2-members shell / a stale PWA scope
-  // may have injected. Brand-aware: prefix with the resolved customer
-  // name on branded hosts (e.g. "Oxford Club — F2 User Compliance").
+  // IT-F2-416 c/006e5ad7 — force tab title + favicon to F2-User-
+  // Compliance identity on mount (stops PWA-scope or SW-cached
+  // customer branding from leaking into the tab).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -61,16 +147,10 @@ export function App() {
       if (cancelled) return;
       const title = brandName ? `${brandName} — F2 User Compliance` : 'F2 User Compliance';
       document.title = title;
-      // Also drop any stale <link rel="icon"> pinned to a non-F2 asset.
-      // Replace with the vercel default favicon.ico we serve. Prevents
-      // a PWA-scope inherit or a service-worker cached favicon from
-      // sneaking a customer logo into the F2-User-Compliance tab.
       try {
         for (const l of Array.from(document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'))) {
           l.parentElement?.removeChild(l);
         }
-        // Inline "F2" mark so nothing external (customer favicon cache,
-        // PWA-scope inherit, service-worker fallback) can override it.
         const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#1e3a8a"/><text x="16" y="22" font-family="system-ui,sans-serif" font-size="18" font-weight="700" fill="#f3f4f6" text-anchor="middle">F2</text></svg>';
         const link = document.createElement('link');
         link.setAttribute('rel', 'icon');
@@ -81,90 +161,135 @@ export function App() {
     })();
     return () => { cancelled = true; };
   }, []);
-  const [activeIdx, setActiveIdx] = useState<number>(() => {
+
+  const [sel, setSel] = useState<Selection>(() => {
     try {
       const slug = new URLSearchParams(window.location.search).get('tab');
-      if (!slug) return 0;
-      const idx = NAV_ITEMS.findIndex((n) => n.slug === slug);
-      return idx >= 0 ? idx : 0;
+      return selectionFromSlug(slug);
     } catch {
-      return 0;
+      return { parent: 0, sub: null };
     }
   });
   useEffect(() => {
     try {
-      const slug = NAV_ITEMS[activeIdx]?.slug;
+      const slug = slugFromSelection(sel);
       const url = new URL(window.location.href);
       if (!slug || slug === 'overview') url.searchParams.delete('tab');
       else url.searchParams.set('tab', slug);
       const next = url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash;
       window.history.replaceState(null, '', next);
-    } catch {
-      // best-effort only
-    }
-  }, [activeIdx]);
-  const active = NAV_ITEMS[activeIdx];
+    } catch { /* best-effort */ }
+  }, [sel]);
+
+  const active = activeItem(sel);
+
+  const bubbleBg = (n: NavItem) =>
+    n.kind === 'overview' ? '#374151'
+    : n.kind === 'member'   ? '#15803d'
+    : '#1e3a8a';
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header style={{ background: '#1f2937', padding: '12px 20px', borderBottom: '1px solid #374151', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <Link to="/" onClick={() => setActiveIdx(0)} style={{ fontSize: 16, fontWeight: 700, color: '#f3f4f6', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+        <Link to="/" onClick={() => setSel({ parent: 0, sub: null })} style={{ fontSize: 16, fontWeight: 700, color: '#f3f4f6', textDecoration: 'none', whiteSpace: 'nowrap' }}>
           F2 User Compliance
         </Link>
         <span style={{ fontSize: 12, color: '#9ca3af' }}>NYSE audit walkthrough dashboard</span>
       </header>
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
         <aside style={{
-          width: 260, minWidth: 260, background: '#0f172a', borderRight: '1px solid #1f2937',
+          width: 280, minWidth: 280, background: '#0f172a', borderRight: '1px solid #1f2937',
           display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 0', overflow: 'auto',
         }}>
           <div style={{ padding: '6px 16px 10px', fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Audit agenda
           </div>
           {NAV_ITEMS.map((n, idx) => {
-            const isActive = idx === activeIdx;
+            const isParentActive = sel.parent === idx && sel.sub == null;
+            const anySubActive   = sel.parent === idx && sel.sub != null;
+            const expanded       = !!(n.subs && n.subs.length > 0) && (isParentActive || anySubActive);
             return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setActiveIdx(idx)}
-                title={n.title}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 16px',
-                  color: isActive ? '#f3f4f6' : '#cbd5e1',
-                  background: isActive ? '#1e293b' : 'transparent',
-                  border: 'none',
-                  borderLeft: `3px solid ${isActive ? '#60a5fa' : 'transparent'}`,
-                  textAlign: 'left', fontSize: 13, fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  transition: 'background .12s, border-color .12s, color .12s',
-                }}
-                onMouseEnter={(e) => {
-                  if (isActive) return;
-                  (e.currentTarget as HTMLElement).style.background = '#1e293b';
-                  (e.currentTarget as HTMLElement).style.color = '#f3f4f6';
-                }}
-                onMouseLeave={(e) => {
-                  if (isActive) return;
-                  (e.currentTarget as HTMLElement).style.background = 'transparent';
-                  (e.currentTarget as HTMLElement).style.color = '#cbd5e1';
-                }}
-              >
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width: 24, height: 24, borderRadius: '50%',
-                  background: n.kind === 'overview' ? '#374151' : n.kind === 'member' ? '#15803d' : '#1e3a8a',
-                  color: '#e5e7eb',
-                  fontSize: 11, fontWeight: 700, flexShrink: 0,
-                }}>{n.n == null ? '·' : n.n}</span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
-              </button>
+              <div key={idx}>
+                <button
+                  type="button"
+                  onClick={() => setSel({ parent: idx, sub: null })}
+                  title={n.title}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                    padding: '10px 16px',
+                    color: (isParentActive || anySubActive) ? '#f3f4f6' : '#cbd5e1',
+                    background: isParentActive ? '#1e293b' : 'transparent',
+                    border: 'none',
+                    borderLeft: `3px solid ${isParentActive ? '#60a5fa' : 'transparent'}`,
+                    textAlign: 'left', fontSize: 13, fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    transition: 'background .12s, border-color .12s, color .12s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isParentActive) return;
+                    (e.currentTarget as HTMLElement).style.background = '#1e293b';
+                    (e.currentTarget as HTMLElement).style.color = '#f3f4f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (isParentActive) return;
+                    (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    (e.currentTarget as HTMLElement).style.color = (anySubActive ? '#f3f4f6' : '#cbd5e1');
+                  }}
+                >
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 24, height: 24, borderRadius: '50%',
+                    background: bubbleBg(n),
+                    color: '#e5e7eb',
+                    fontSize: 11, fontWeight: 700, flexShrink: 0,
+                  }}>{n.n == null ? '·' : n.n}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
+                </button>
+
+                {expanded && n.subs && n.subs.map((sub, subIdx) => {
+                  const isSubActive = sel.parent === idx && sel.sub === subIdx;
+                  return (
+                    <button
+                      key={subIdx}
+                      type="button"
+                      onClick={() => setSel({ parent: idx, sub: subIdx })}
+                      title={sub.title}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                        padding: '7px 16px 7px 44px',
+                        color: isSubActive ? '#f3f4f6' : '#94a3b8',
+                        background: isSubActive ? '#172033' : 'transparent',
+                        border: 'none',
+                        borderLeft: `3px solid ${isSubActive ? '#60a5fa' : 'transparent'}`,
+                        textAlign: 'left', fontSize: 12, fontFamily: 'inherit',
+                        cursor: 'pointer',
+                        transition: 'background .12s, border-color .12s, color .12s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (isSubActive) return;
+                        (e.currentTarget as HTMLElement).style.background = '#172033';
+                        (e.currentTarget as HTMLElement).style.color = '#e5e7eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (isSubActive) return;
+                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                        (e.currentTarget as HTMLElement).style.color = '#94a3b8';
+                      }}
+                    >
+                      <span style={{
+                        width: 4, height: 4, borderRadius: '50%',
+                        background: isSubActive ? '#60a5fa' : '#475569',
+                        flexShrink: 0,
+                      }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
-          {/* Open-in-new-tab escape hatch for the currently-selected item.
-              Iframes work for most destinations but a few may X-Frame-
-              deny (admin.f2-tech.ai / others); this lets the auditor
-              still get to the surface without abandoning the walkthrough. */}
+          {/* Open-in-new-tab escape hatch for the currently-selected item
+              when it's an iframe (some destinations X-Frame-deny). */}
           {active.src && active.kind === 'iframe' && (
             <a
               href={active.src}
