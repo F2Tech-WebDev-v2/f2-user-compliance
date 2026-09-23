@@ -37,6 +37,12 @@ type NavItem = {
   kind?: NavKind;
   slug: string; // stable URL slug per tab (?tab=<slug>) for hard-refresh
   subs?: NavItem[]; // c/feafab54 — nested sub-navigation
+  // c/5c731529 (Mike 2026-09-23) — additional query params to set on
+  // the URL when this sub is activated. Used e.g. to preset the
+  // ExchangeAgreementReview `status` filter (?status=all) so the
+  // admin-edit-user sub lands on the full user list instead of the
+  // default "pending" review queue.
+  queryDefaults?: Record<string, string>;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -74,7 +80,7 @@ const NAV_ITEMS: NavItem[] = [
     // simultaneous-access prevention (live-session displacement).
     subs: [
       { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel)', src: null, kind: 'agreement-review' },
-      { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Exchange Agreement Review — same native panel (per Mike c/b180b04c)', src: null, kind: 'agreement-review' },
+      { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Exchange Agreement Review — full user list (per Mike c/5c731529: preset status=all)', src: null, kind: 'agreement-review', queryDefaults: { status: 'all' } },
       { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'Two side-by-side frames of the Gap Up / Down scanner — log the same user into both to demo displacement', src: null, kind: 'displacement-demo' },
     ],
   },
@@ -182,6 +188,17 @@ export function App() {
       const url = new URL(window.location.href);
       if (!slug || slug === 'overview') url.searchParams.delete('tab');
       else url.searchParams.set('tab', slug);
+      // c/5c731529 — apply per-nav-item queryDefaults ONLY when the
+      // param isn't already in the URL. Lets sub-items preset filters
+      // (e.g. ?status=all on Admin · edit user) without clobbering a
+      // deep-link the user pasted in explicitly.
+      const activeNav = activeItem(sel);
+      const defaults = activeNav?.queryDefaults;
+      if (defaults) {
+        for (const [k, v] of Object.entries(defaults)) {
+          if (!url.searchParams.has(k)) url.searchParams.set(k, v);
+        }
+      }
       const next = url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash;
       window.history.replaceState(null, '', next);
     } catch { /* best-effort */ }
