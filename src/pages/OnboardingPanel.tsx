@@ -337,53 +337,69 @@ export function OnboardingPanel() {
 
   const sendEmailFor = useCallback(async (email: string) => {
     setRowState(email, { state: 'sending', message: undefined, link: undefined });
-    // Existing-first: if the user is already in a pool, skip create and
-    // fire send-magic-link directly. Avoids the "User account already
-    // exists" 409 that AdminCreateUser throws for duplicate emails.
+    // Look the user up in the fleet's reverse index. Three outcomes:
+    //   (a) not in any pool → CREATE in the customer's target pool.
+    //   (b) already in the target pool → send-magic-link on it (no
+    //       double-create, no 409).
+    //   (c) exists in a DIFFERENT pool → CREATE in the target pool
+    //       anyway. Per Mike c/9e64ddff ("the link didn't use the
+    //       correct pool"), same-email-in-another-tenant\'s-pool is a
+    //       separate identity from the one THIS customer is inviting.
+    //       Same-pool 409 would surface as a fresh err on the create
+    //       call and stop; we don\'t silently fall through to the
+    //       wrong pool.
     const existing = await lookupExisting(email);
-    if (existing.pool_id && existing.username) {
-      const sent = await sendMagicToExisting(existing.username, existing.pool_id);
+    const target = brand?.cognito_pool_id || null;
+    const foundInTarget = !!(existing.pool_id && target && existing.pool_id === target);
+    if (existing.pool_id && (!target || foundInTarget)) {
+      const sent = await sendMagicToExisting(existing.username || email, existing.pool_id);
       if (sent.err) { setRowState(email, { state: 'error', message: `existing user (pool ${existing.pool_id}): ${sent.err}` }); return; }
-      const pref = existing.wrongPool
-        ? `Magic-link sent to existing user — WARNING: they live in pool ${existing.pool_id}, not this customer's pool ${brand?.cognito_pool_id}.`
-        : `Magic-link email sent to existing user (pool ${existing.pool_id}).`;
-      setRowState(email, { state: 'sent', message: pref });
+      setRowState(email, { state: 'sent', message: `Magic-link email sent to existing user (pool ${existing.pool_id}).` });
       return;
     }
+    // Wrong-pool OR not-yet-in-fleet → create in target pool.
     const created = await createUser(email, true);
     if (created.err) {
       setRowState(email, { state: 'error', message: created.err });
       return;
     }
-    setRowState(email, { state: 'sent', message: `New user created${created.pool_id ? ` in pool ${created.pool_id}` : ''} — magic-link email sent.` });
+    const note = existing.pool_id
+      ? ` (also exists as separate identity in pool ${existing.pool_id})`
+      : '';
+    setRowState(email, { state: 'sent', message: `New user created in pool ${created.pool_id || target || 'legacy'} — magic-link email sent${note}.` });
   }, [lookupExisting, sendMagicToExisting, createUser, setRowState, brand]);
 
   const copyLinkFor = useCallback(async (email: string) => {
     setRowState(email, { state: 'copying', message: undefined, link: undefined });
+    // Same 3-outcome ladder as sendEmailFor above — a same-email-in-
+    // another-tenant\'s-pool is a SEPARATE identity, so we still
+    // create in the target pool per Mike c/9e64ddff.
     const existing = await lookupExisting(email);
-    let username = existing.username;
-    let pool_id = existing.pool_id;
-    let noun = 'existing user';
-    if (!username) {
-      // Create + mint. Backend routes the new user into the customer's
-      // pool via body.customers → getCustomerCognitoPool (domain-driven
-      // SoT).
+    const target = brand?.cognito_pool_id || null;
+    const foundInTarget = !!(existing.pool_id && target && existing.pool_id === target);
+    let username: string | undefined;
+    let pool_id: string | undefined;
+    let noun = 'new user';
+    if (existing.pool_id && (!target || foundInTarget)) {
+      username = existing.username;
+      pool_id = existing.pool_id;
+      noun = 'existing user';
+    } else {
       const created = await createUser(email, false);
       if (created.err) { setRowState(email, { state: 'error', message: created.err }); return; }
       username = created.username;
       pool_id = created.pool_id;
-      noun = 'new user';
     }
     const minted = await mintForExisting(username || email, pool_id);
     if (minted.err || !minted.url) { setRowState(email, { state: 'error', message: `${noun}: ${minted.err || 'no url'}` }); return; }
-    const wrongPoolNote = existing.wrongPool
-      ? ` — WARNING: user lives in pool ${pool_id}, not this customer's pool ${brand?.cognito_pool_id}`
+    const crossNote = (noun === 'new user' && existing.pool_id)
+      ? ` (also exists as separate identity in pool ${existing.pool_id})`
       : '';
     try {
       await navigator.clipboard.writeText(minted.url);
-      setRowState(email, { state: 'copied', message: `Link copied (${noun}${pool_id ? ` · pool ${pool_id}` : ''}).${wrongPoolNote}`, link: minted.url });
+      setRowState(email, { state: 'copied', message: `Link copied (${noun} · pool ${pool_id || 'legacy'}${crossNote}).`, link: minted.url });
     } catch {
-      setRowState(email, { state: 'copied', message: `Link ready (${noun}${pool_id ? ` · pool ${pool_id}` : ''}) — clipboard blocked, see below.${wrongPoolNote}`, link: minted.url });
+      setRowState(email, { state: 'copied', message: `Link ready (${noun} · pool ${pool_id || 'legacy'}${crossNote}) — clipboard blocked, see below.`, link: minted.url });
     }
   }, [lookupExisting, createUser, mintForExisting, setRowState, brand]);
 
