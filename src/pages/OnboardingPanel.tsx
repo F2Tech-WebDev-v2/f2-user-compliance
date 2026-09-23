@@ -200,7 +200,51 @@ export function OnboardingPanel() {
     setRows((prev) => prev.map((r) => r.email === email ? { ...r, ...patch } : r));
   }, []);
 
-  const createUser = useCallback(async (email: string, sendMagicLink: boolean): Promise<{ err?: string; username?: string; pool_id?: string }> => {
+  // Domain-driven customer SoT: whether we treat the user as "new"
+  // (create-then-act) or "existing" (skip create, act directly) is
+  // resolved via /users/lookup-pools-for-email — a hit means the
+  // user is already in one of the fleet's Cognito pools, and re-
+  // creating them would 409 with "User account already exists".
+  //
+  // IT-F2-416 c/ceb949d7 (Mike 2026-09-23 "its not looking at the
+  // customer source of truth cognito pool based on domain"): the
+  // create fallback also passes `customers` = brand.slug on branded
+  // hosts so the backend routes the new user into that customer's
+  // Cognito pool (customer-directory.cognito_pool.user_pool_id) via
+  // getCustomerCognitoPool. Legacy fleet-wide pool only kicks in on
+  // the raw F2 hub with no override typed.
+  const lookupExisting = useCallback(async (email: string): Promise<{ pool_id?: string; username?: string; err?: string }> => {
+    try {
+      const r = await fetch(`/rest/admin/users/lookup-pools-for-email?email=${encodeURIComponent(email)}`, {
+        credentials: 'include',
+      });
+      if (!r.ok) return { err: `lookup HTTP ${r.status}` };
+      const j = await r.json();
+      const pool_ids: string[] = Array.isArray(j?.pool_ids) ? j.pool_ids
+        : Array.isArray(j?.pools) ? j.pools.map((p: any) => p?.pool_id || p).filter(Boolean)
+        : [];
+      if (pool_ids.length === 0) return {};
+      const pool_id = pool_ids[0];
+      // Resolve the Cognito Username by reading the cached row. Falls
+      // through with username=email if the cached read doesn't return a
+      // Username field (email-as-username pools).
+      try {
+        const cachedRes = await fetch(`/rest/admin/users/${encodeURIComponent(email)}/cached?pool_id=${encodeURIComponent(pool_id)}`, {
+          credentials: 'include',
+        });
+        if (cachedRes.ok) {
+          const c = await cachedRes.json();
+          const username = c?.Username || c?.username || c?.user?.Username || email;
+          return { pool_id, username };
+        }
+      } catch { /* silent — fall through */ }
+      return { pool_id, username: email };
+    } catch (e: any) {
+      return { err: e?.message || 'lookup failed' };
+    }
+  }, []);
+
+  const createUser = useCallback(async (email: string, sendMagicLink: boolean): Promise<{ err?: string; username?: string; pool_id?: string; already_existed?: boolean }> => {
     if (customers.length === 0) return { err: 'no customer scope resolved — type target customer slug(s) below' };
     if (selectedScanners.length === 0) return { err: 'select at least one scanner' };
     const body = {
@@ -226,47 +270,77 @@ export function OnboardingPanel() {
     }
   }, [customers, selectedScanners]);
 
+  const sendMagicToExisting = useCallback(async (username: string, pool_id?: string): Promise<{ err?: string }> => {
+    try {
+      const res = await fetch(`/rest/admin/users/${encodeURIComponent(username)}/send-magic-link`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(pool_id ? { pool_id } : {}),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j?.err) return { err: j?.err || `send HTTP ${res.status}` };
+      return {};
+    } catch (e: any) { return { err: e?.message || 'send failed' }; }
+  }, []);
+
+  const mintForExisting = useCallback(async (username: string, pool_id?: string): Promise<{ err?: string; url?: string }> => {
+    try {
+      const res = await fetch(`/rest/admin/users/${encodeURIComponent(username)}/mint-magic-link`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(pool_id ? { pool_id } : {}),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j?.err || !j?.url) return { err: j?.err || `mint HTTP ${res.status}` };
+      return { url: j.url };
+    } catch (e: any) { return { err: e?.message || 'mint failed' }; }
+  }, []);
+
   const sendEmailFor = useCallback(async (email: string) => {
     setRowState(email, { state: 'sending', message: undefined, link: undefined });
+    // Existing-first: if the user is already in a pool, skip create and
+    // fire send-magic-link directly. Avoids the "User account already
+    // exists" 409 that AdminCreateUser throws for duplicate emails.
+    const existing = await lookupExisting(email);
+    if (existing.pool_id && existing.username) {
+      const sent = await sendMagicToExisting(existing.username, existing.pool_id);
+      if (sent.err) { setRowState(email, { state: 'error', message: `existing user (pool ${existing.pool_id}): ${sent.err}` }); return; }
+      setRowState(email, { state: 'sent', message: `Magic-link email sent to existing user (pool ${existing.pool_id}).` });
+      return;
+    }
     const created = await createUser(email, true);
     if (created.err) {
       setRowState(email, { state: 'error', message: created.err });
       return;
     }
-    setRowState(email, { state: 'sent', message: 'Magic-link email sent.' });
-  }, [createUser, setRowState]);
+    setRowState(email, { state: 'sent', message: 'New user created — magic-link email sent.' });
+  }, [lookupExisting, sendMagicToExisting, createUser, setRowState]);
 
   const copyLinkFor = useCallback(async (email: string) => {
     setRowState(email, { state: 'copying', message: undefined, link: undefined });
-    // Step 1: create the user WITHOUT sending an email (send_magic_link:false).
-    const created = await createUser(email, false);
-    if (created.err) {
-      setRowState(email, { state: 'error', message: created.err });
-      return;
+    const existing = await lookupExisting(email);
+    let username = existing.username;
+    let pool_id = existing.pool_id;
+    let noun = 'existing user';
+    if (!username) {
+      // Create + mint. Backend routes the new user into the customer's
+      // pool via body.customers → getCustomerCognitoPool (domain-driven
+      // SoT).
+      const created = await createUser(email, false);
+      if (created.err) { setRowState(email, { state: 'error', message: created.err }); return; }
+      username = created.username;
+      pool_id = created.pool_id;
+      noun = 'new user';
     }
-    // Step 2: mint an invite URL for the just-created user.
+    const minted = await mintForExisting(username || email, pool_id);
+    if (minted.err || !minted.url) { setRowState(email, { state: 'error', message: `${noun}: ${minted.err || 'no url'}` }); return; }
     try {
-      const url = `/rest/admin/users/${encodeURIComponent(created.username || email)}/mint-magic-link`;
-      const res = await fetch(url, {
-        method: 'POST', credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(created.pool_id ? { pool_id: created.pool_id } : {}),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || j?.err || !j?.url) {
-        setRowState(email, { state: 'error', message: j?.err || `mint HTTP ${res.status}` });
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(j.url);
-        setRowState(email, { state: 'copied', message: 'Link copied to clipboard.', link: j.url });
-      } catch {
-        setRowState(email, { state: 'copied', message: 'Link ready (clipboard blocked — see below).', link: j.url });
-      }
-    } catch (e: any) {
-      setRowState(email, { state: 'error', message: e?.message || 'mint failed' });
+      await navigator.clipboard.writeText(minted.url);
+      setRowState(email, { state: 'copied', message: `Link copied (${noun}${pool_id ? ` · pool ${pool_id}` : ''}).`, link: minted.url });
+    } catch {
+      setRowState(email, { state: 'copied', message: `Link ready (${noun}${pool_id ? ` · pool ${pool_id}` : ''}) — clipboard blocked, see below.`, link: minted.url });
     }
-  }, [createUser, setRowState]);
+  }, [lookupExisting, createUser, mintForExisting, setRowState]);
 
   const runAllSend = useCallback(async () => {
     for (const r of rows) {
