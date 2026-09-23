@@ -155,8 +155,34 @@ export function ExchangeAgreementReview() {
   const [bulkReason, setBulkReason] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
   const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
-  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('pending');
-  const [searchQuery, setSearchQuery] = useState('');
+  // c/ac1d7aa8 (Mike 2026-09-23): filter state is URL-persisted so
+  // browser refresh preserves the current review-status + search
+  // query. Query params:
+  //   ?status=all|pending|approved|declined  (default 'pending')
+  //   ?q=<search>                            (default empty)
+  // Kept out of the URL when equal to defaults to avoid noise.
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>(() => {
+    if (typeof window === 'undefined') return 'pending';
+    const p = new URLSearchParams(window.location.search).get('status');
+    return (p === 'all' || p === 'pending' || p === 'approved' || p === 'declined') ? p : 'pending';
+  });
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') || '';
+  });
+  // Write both filters back to the URL on change (replaceState, no
+  // history spam). Sibling tab params like ?tab= are preserved.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (reviewFilter === 'pending') url.searchParams.delete('status');
+      else url.searchParams.set('status', reviewFilter);
+      if (!searchQuery) url.searchParams.delete('q');
+      else url.searchParams.set('q', searchQuery);
+      const next = url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash;
+      window.history.replaceState(null, '', next);
+    } catch { /* best-effort */ }
+  }, [reviewFilter, searchQuery]);
   const [viewRow, setViewRow] = useState<ExhibitRow | null>(null);
   const [viewDetail, setViewDetail] = useState<any>(null);
   const [viewLoading, setViewLoading] = useState(false);
