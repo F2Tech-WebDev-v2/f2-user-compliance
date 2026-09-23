@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { MemberPanel } from './pages/MemberPanel';
@@ -362,21 +362,7 @@ export function App() {
           ) : active.kind === 'displacement-demo' ? (
             <DisplacementDemoPanel />
           ) : (
-            <iframe
-              // c/e64bc63f (Mike 2026-09-23) — nav items flagged
-              // `credentialless: true` render the iframe with the
-              // credentialless attribute so the embedded page runs
-              // isolated (fresh cookies + storage), which is what the
-              // scanner / displacement demos need so the auditor sees
-              // the login → app flow rather than the parent tab's
-              // already-signed-in session.
-              {...(active.credentialless ? ({ credentialless: '' } as any) : {})}
-              src={active.src!}
-              title={active.title}
-              key={active.src}
-              style={{ flex: 1, width: '100%', border: 0, background: 'white' }}
-              referrerPolicy={active.credentialless ? 'no-referrer' : undefined}
-            />
+            <NavIframe src={active.src!} title={active.title} credentialless={!!active.credentialless} />
           )}
         </main>
       </div>
@@ -384,5 +370,31 @@ export function App() {
         F2 User Compliance — internal use only.
       </footer>
     </div>
+  );
+}
+
+// c/03512c28 (Mike 2026-09-23) — generic nav iframe that imperatively
+// sets `credentialless` when the nav item asked for it. Ref-based
+// setAttribute lands the attribute independent of React's typed prop-
+// passthrough (some builds warn on unknown lowercase attrs but still
+// forward them; some don't). Anonymous browsing partition is what
+// prevents the iframe's cookies + storage from bleeding into the
+// parent tab's cookie jar.
+function NavIframe({ src, title, credentialless }: { src: string; title: string; credentialless: boolean }) {
+  const ref = useRef<HTMLIFrameElement | null>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    if (credentialless) ref.current.setAttribute('credentialless', '');
+    else ref.current.removeAttribute('credentialless');
+  }, [src, credentialless]);
+  return (
+    <iframe
+      ref={ref}
+      src={src}
+      title={title}
+      key={src}
+      style={{ flex: 1, width: '100%', border: 0, background: 'white' }}
+      referrerPolicy={credentialless ? 'no-referrer' : undefined}
+    />
   );
 }

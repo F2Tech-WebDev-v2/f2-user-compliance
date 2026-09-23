@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * IT-F2-421 c/077182bf (Mike 2026-09-23): Set-password panel — paste-a-
@@ -40,6 +40,17 @@ export function AcceptInvitePanel() {
   // re-run the demo without changing the URL (e.g. after landing on
   // the wrong step in the flow). React keys off it via `key`.
   const [reloadNonce, setReloadNonce] = useState(0);
+
+  // c/03512c28 (Mike 2026-09-23) — belt-and-suspenders attribute set.
+  // Some React 18 builds warn on unknown lowercase DOM props even
+  // though the attribute still lands; explicit setAttribute on mount
+  // guarantees the browser sees `credentialless` regardless of prop-
+  // passing behavior. Anonymous-browsing partition is what stops the
+  // iframe's cookies + storage from leaking into the parent tab.
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  useEffect(() => {
+    if (iframeRef.current) iframeRef.current.setAttribute('credentialless', '');
+  }, [loadedUrl, reloadNonce]);
 
   const load = () => {
     const v = isAllowedMagicLinkUrl(pasted);
@@ -102,11 +113,9 @@ export function AcceptInvitePanel() {
       <div style={{ flex: 1, minHeight: 0, background: '#0b0f19', position: 'relative' }}>
         {loadedUrl ? (
           <iframe
-            // Credentialless attribute is what browsers use to open the
-            // frame in an anonymous browsing context (no shared cookies /
-            // localStorage). React types don't cover it yet; splat via
-            // `{...({ credentialless: '' } as any)}` so TS is happy.
-            {...({ credentialless: '' } as any)}
+            ref={iframeRef}
+            // credentialless is set imperatively in the effect above so
+            // it lands regardless of React's typed-prop passthrough.
             src={loadedUrl}
             key={`${loadedUrl}#${reloadNonce}`}
             title="Set-password / accept-invite flow"

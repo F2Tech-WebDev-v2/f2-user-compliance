@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * IT-F2-421 c/339ac8f0 (Mike 2026-09-23): Live-session displacement
@@ -21,6 +21,12 @@ const SCANNER_URL = 'https://scanners.f2-tech.ai/scans/f2-gap-up-down';
 
 function FrameCard({ side }: { side: 'A' | 'B' }) {
   const [nonce, setNonce] = useState(0);
+  // c/03512c28 — imperative attribute set for guaranteed anonymous-
+  // browsing partition (see AcceptInvitePanel for the same pattern).
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  useEffect(() => {
+    if (iframeRef.current) iframeRef.current.setAttribute('credentialless', '');
+  }, [nonce]);
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: side === 'A' ? '1px solid #1f2937' : 'none' }}>
       <div style={{
@@ -49,9 +55,7 @@ function FrameCard({ side }: { side: 'A' | 'B' }) {
       </div>
       <div style={{ flex: 1, minHeight: 0, background: '#0b0f19' }}>
         <iframe
-          // credentialless attribute isn't in React's typed props yet;
-          // splat with an object cast so TS is happy.
-          {...({ credentialless: '' } as any)}
+          ref={iframeRef}
           src={SCANNER_URL}
           key={`${side}#${nonce}`}
           title={`Live-displacement demo · Frame ${side}`}
