@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
+import { AccountMenu } from 'f2tech-shared/account-menu';
 import { Dashboard } from './pages/Dashboard';
 import { MemberPanel } from './pages/MemberPanel';
 import { ExchangeAgreementReview } from './pages/ExchangeAgreementReview';
 import { OnboardingPanel } from './pages/OnboardingPanel';
 import { AcceptInvitePanel } from './pages/AcceptInvitePanel';
 import { DisplacementDemoPanel } from './pages/DisplacementDemoPanel';
+import { useMe } from './api/me';
+import { setTokenBundle } from './auth/session';
 
 /**
  * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e + c/feafab54:
@@ -204,6 +207,13 @@ export function App() {
           F2 User Compliance
         </Link>
         <span style={{ fontSize: 12, color: '#9ca3af' }}>NYSE compliance walkthrough dashboard</span>
+        {/* c/b6978add (Mike 2026-09-23) — shared account coin on the
+            right. Fleet-standard f2tech-shared/account-menu — hover
+            reveals identity, click opens the Change-password / Sign-out
+            dropdown. Same pattern every other SPA in the fleet. */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+          <AccountCoin />
+        </div>
       </header>
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
         <aside style={{
@@ -370,6 +380,42 @@ export function App() {
         F2 User Compliance — internal use only.
       </footer>
     </div>
+  );
+}
+
+// c/b6978add (Mike 2026-09-23) — account coin wrapper. Fleet-standard
+// f2tech-shared React AccountMenu (same widget f2-gap-up-down, f2-
+// tracker, f2-admin, etc. use). Identity decoded from the in-memory
+// id_token via useMe; sign-out clears the token bundle + POSTs the
+// backend logout endpoint + bounces to the branded members home.
+function AccountCoin() {
+  const me = useMe();
+  return (
+    <AccountMenu
+      email={me.email}
+      firstName={me.firstName}
+      lastName={me.lastName}
+      agreementUrl={null}
+      onChangePassword={() => {
+        window.location.href = 'https://members.f2-tech.ai/change-password';
+      }}
+      onSignOut={() => {
+        // Same shape as f2-gap-up-down IT-F2-421 c/34d2db3c —
+        // /rest/api/logout on SessionController is the correct endpoint;
+        // /rest/auth/logout 404s on f2-admin-service.
+        fetch('/rest/api/logout', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
+        })
+          .catch(() => { /* best-effort */ })
+          .finally(() => {
+            setTokenBundle(null);
+            window.location.href = 'https://members.f2-tech.ai/';
+          });
+      }}
+    />
   );
 }
 

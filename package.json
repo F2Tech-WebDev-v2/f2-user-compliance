@@ -12,6 +12,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
+    "f2tech-shared": "git+https://github.com/F2Tech-WebDev-v2/f2tech-shared.git#ba1cbcc2ca054a92335f5a876a19fa52daed828e",
     "luxon": "^3.5.0",
     "jszip": "^3.10.1",
     "ag-grid-community": "^33.1.1",
