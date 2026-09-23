@@ -9,6 +9,7 @@ import { AcceptInvitePanel } from './pages/AcceptInvitePanel';
 import { DisplacementDemoPanel } from './pages/DisplacementDemoPanel';
 import { ScannerHandoffPanel } from './pages/ScannerHandoffPanel';
 import { CopyUrlPanel } from './pages/CopyUrlPanel';
+import { AdminComplianceReportPanel } from './pages/AdminComplianceReportPanel';
 import { useMe } from './api/me';
 import { setTokenBundle } from './auth/session';
 
@@ -28,7 +29,7 @@ import { setTokenBundle } from './auth/session';
  * cookie/session.
  */
 
-type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite' | 'displacement-demo' | 'scanner-handoff' | 'copy-url-members-home';
+type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite' | 'displacement-demo' | 'scanner-handoff' | 'copy-url-members-home' | 'admin-compliance-report';
 
 type NavItem = {
   n: number | string | null; // null = overview / no bubble; number = agenda step; string = special (e.g. 'M' for Member)
@@ -95,6 +96,13 @@ const NAV_ITEMS: NavItem[] = [
     subs: [
       { n: null, slug: 'reporting-counts-month', label: 'Counts by Month',    title: 'Compliance Report · Counts by Month (monthly submission report)', src: 'https://scanners.f2-tech.ai/scans/f2-compliance-report?tab=counts-by-month', kind: 'iframe' },
       { n: null, slug: 'reporting-exhibit-b',    label: 'Exhibit B / SIP',    title: 'Compliance Report · Exhibit B (NYSE §9.2 Pro subscribers — same row source as the Users tab)', src: 'https://scanners.f2-tech.ai/scans/f2-compliance-report?tab=users', kind: 'iframe' },
+      // c/b31091c7 (Mike 2026-09-23) — full admin compliance-report
+      // page iframed. Carries all its logic (36-col NYSE submission,
+      // TSV copy-to-clipboard, pipe-delimited download, view-mode
+      // switching). Wrapper resolves brand.slug + presets ?customers=
+      // so the customer filter is prefilled per the current branded
+      // domain.
+      { n: null, slug: 'reporting-exhibit-b-full', label: 'Exhibit B / SIP (full)', title: 'Admin compliance report — full 36-col NYSE submission + TSV/pipe download (from admin.f2-tech.ai)', src: null, kind: 'admin-compliance-report' },
       { n: null, slug: 'reporting-access',       label: 'Access review history', title: 'Compliance Report · Login Periods (per-user first login → last login span)', src: 'https://scanners.f2-tech.ai/scans/f2-compliance-report?tab=login-periods', kind: 'iframe' },
     ],
   },
@@ -389,6 +397,8 @@ export function App() {
             <DisplacementDemoPanel />
           ) : active.kind === 'scanner-handoff' ? (
             <ScannerHandoffPanel scannerId={active.src!} title={active.title} />
+          ) : active.kind === 'admin-compliance-report' ? (
+            <AdminComplianceReportPanel />
           ) : active.kind === 'copy-url-members-home' ? (
             <CopyUrlPanel
               title="Members portal — branded scanner catalog"
