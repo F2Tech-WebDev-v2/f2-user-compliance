@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { MemberPanel } from './pages/MemberPanel';
 import { ExchangeAgreementReview } from './pages/ExchangeAgreementReview';
 import { OnboardingPanel } from './pages/OnboardingPanel';
+import { AcceptInvitePanel } from './pages/AcceptInvitePanel';
 
 /**
  * IT-F2-416 item 95fac632 (Mike c/60f82674) + c/7d0c754e + c/feafab54:
@@ -21,7 +22,7 @@ import { OnboardingPanel } from './pages/OnboardingPanel';
  * cookie/session.
  */
 
-type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding';
+type NavKind = 'overview' | 'member' | 'iframe' | 'agreement-review' | 'onboarding' | 'accept-invite';
 
 type NavItem = {
   n: number | string | null; // null = overview / no bubble; number = agenda step; string = special (e.g. 'M' for Member)
@@ -56,7 +57,7 @@ const NAV_ITEMS: NavItem[] = [
     subs: [
       { n: null, slug: 'onboarding-bulk-invite',   label: 'Bulk-invite (this app)',        title: 'Bulk-invite recipients — send email or copy magic link per user', src: null, kind: 'onboarding' },
       { n: null, slug: 'onboarding-admin-users',   label: 'Admin Users panel',             title: 'Admin · Users (bulk-add / add-user modal)', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
-      { n: null, slug: 'onboarding-accept-invite', label: 'Set password + name (invitee)', title: 'Members portal · accept-invite (invitee sets password + first/last name)', src: 'https://members.f2-tech.ai/accept-invite', kind: 'iframe' },
+      { n: null, slug: 'onboarding-accept-invite', label: 'Set password + name (invitee)', title: 'Paste an invite magic link → run the set-password + name flow in an isolated frame', src: null, kind: 'accept-invite' },
     ],
   },
 
@@ -348,6 +349,8 @@ export function App() {
             <ExchangeAgreementReview />
           ) : active.kind === 'onboarding' ? (
             <OnboardingPanel />
+          ) : active.kind === 'accept-invite' ? (
+            <AcceptInvitePanel />
           ) : (
             <iframe
               src={active.src!}
