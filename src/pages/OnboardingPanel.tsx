@@ -208,6 +208,14 @@ export function OnboardingPanel() {
     setRows((prev) => prev.map((r) => r.email === email ? { ...r, ...patch } : r));
   }, []);
 
+  // Every mint / send / create call to the backend passes invite_host
+  // = current SPA origin so the accept-invite URL lands on the domain
+  // the admin is CURRENTLY on (scanners.f2-tech.ai when we're on the
+  // F2 hub) — not the pool's customer_slug branded host that the
+  // backend would otherwise pick when the target email happens to
+  // already live in a different customer's pool. IT-F2-416 c/7376ef8c.
+  const inviteHost = typeof window !== 'undefined' ? window.location.origin : '';
+
   // Domain-driven customer SoT: whether we treat the user as "new"
   // (create-then-act) or "existing" (skip create, act directly) is
   // resolved via /users/lookup-pools-for-email — a hit means the
@@ -294,14 +302,6 @@ export function OnboardingPanel() {
       return { err: e?.message || 'create failed' };
     }
   }, [customers, selectedScanners, brand, inviteHost]);
-
-  // Every mint / send / create call to the backend passes invite_host
-  // = current SPA origin so the accept-invite URL lands on the domain
-  // the admin is CURRENTLY on (scanners.f2-tech.ai when we're on the
-  // F2 hub) — not the pool's customer_slug branded host that the
-  // backend would otherwise pick when the target email happens to
-  // already live in a different customer's pool. IT-F2-416 c/7376ef8c.
-  const inviteHost = typeof window !== 'undefined' ? window.location.origin : '';
 
   const sendMagicToExisting = useCallback(async (username: string, pool_id?: string): Promise<{ err?: string }> => {
     try {
