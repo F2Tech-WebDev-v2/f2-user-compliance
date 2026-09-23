@@ -639,7 +639,7 @@ export function ExchangeAgreementReview() {
             : 'Exchange Agreement Review'}
         </h1>
         <p style={{ margin: '4px 0 0', fontSize: 12, color: '#9ca3af' }}>
-          Approve grants live data; decline revokes it and reverts to delayed-data mode. All decisions land in <code>F2-ADMIN.ReviewAudit</code>. Panel updates live from any admin.
+          Approve grants live data; decline revokes it and reverts to delayed-data mode. All decisions are logged. Panel updates live from any admin.
         </p>
       </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { MemberPanel } from './pages/MemberPanel';
@@ -82,7 +82,7 @@ const NAV_ITEMS: NavItem[] = [
     subs: [
       { n: null, slug: 'reporting-counts-month', label: 'Counts by Month',    title: 'Compliance Report · Counts by Month (monthly submission report)', src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/counts-by-month', kind: 'iframe' },
       { n: null, slug: 'reporting-exhibit-b',    label: 'Exhibit B / SIP',    title: 'Compliance Report · Exhibit B (NYSE §9.2 Pro subscribers)', src: 'https://members.f2-tech.ai/f2/f2-compliance-report?next=/exhibit-b', kind: 'iframe' },
-      { n: null, slug: 'reporting-access',       label: 'Admin access audit', title: 'Admin · Users panel (who has admin access + role)', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
+      { n: null, slug: 'reporting-access',       label: 'Admin access review', title: 'Admin · Users panel (who has admin access + role)', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
     ],
   },
 
@@ -194,7 +194,7 @@ export function App() {
         <Link to="/" onClick={() => setSel({ parent: 0, sub: null })} style={{ fontSize: 16, fontWeight: 700, color: '#f3f4f6', textDecoration: 'none', whiteSpace: 'nowrap' }}>
           F2 User Compliance
         </Link>
-        <span style={{ fontSize: 12, color: '#9ca3af' }}>NYSE audit walkthrough dashboard</span>
+        <span style={{ fontSize: 12, color: '#9ca3af' }}>NYSE compliance walkthrough dashboard</span>
       </header>
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
         <aside style={{
@@ -202,52 +202,73 @@ export function App() {
           display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 0', overflow: 'auto',
         }}>
           <div style={{ padding: '6px 16px 10px', fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Audit agenda
+            Walkthrough steps
           </div>
           {NAV_ITEMS.map((n, idx) => {
             const isParentActive = sel.parent === idx && sel.sub == null;
             const anySubActive   = sel.parent === idx && sel.sub != null;
             // c/a0c0f2b7 (Mike 2026-09-23) — subs always visible by default
-            // so the auditor can see the whole tree at a glance instead of
+            // so users can see the whole tree at a glance instead of
             // having to click into each parent to reveal targets.
             const expanded       = !!(n.subs && n.subs.length > 0);
+            // c/3d6ac31e (Mike 2026-09-23) — numbered parent bullets
+            // (#1 … #5) are display-only headers, not clickable. Only the
+            // sub-items open a destination. Overview + Member bubbles
+            // (non-numeric bubble) stay clickable since they don't have
+            // subs to represent them.
+            const isNumberedParent = typeof n.n === 'number';
+            const parentIsButton = !isNumberedParent;
+            const parentSharedStyle: CSSProperties = {
+              display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+              padding: '10px 16px',
+              color: (isParentActive || anySubActive) ? '#f3f4f6' : '#cbd5e1',
+              background: isParentActive ? '#1e293b' : 'transparent',
+              border: 'none',
+              borderLeft: `3px solid ${isParentActive ? '#60a5fa' : 'transparent'}`,
+              textAlign: 'left', fontSize: 13, fontFamily: 'inherit',
+              cursor: parentIsButton ? 'pointer' : 'default',
+              transition: 'background .12s, border-color .12s, color .12s',
+            };
             return (
               <div key={idx}>
-                <button
-                  type="button"
-                  onClick={() => setSel({ parent: idx, sub: null })}
-                  title={n.title}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '10px 16px',
-                    color: (isParentActive || anySubActive) ? '#f3f4f6' : '#cbd5e1',
-                    background: isParentActive ? '#1e293b' : 'transparent',
-                    border: 'none',
-                    borderLeft: `3px solid ${isParentActive ? '#60a5fa' : 'transparent'}`,
-                    textAlign: 'left', fontSize: 13, fontFamily: 'inherit',
-                    cursor: 'pointer',
-                    transition: 'background .12s, border-color .12s, color .12s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isParentActive) return;
-                    (e.currentTarget as HTMLElement).style.background = '#1e293b';
-                    (e.currentTarget as HTMLElement).style.color = '#f3f4f6';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (isParentActive) return;
-                    (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    (e.currentTarget as HTMLElement).style.color = (anySubActive ? '#f3f4f6' : '#cbd5e1');
-                  }}
-                >
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 24, height: 24, borderRadius: '50%',
-                    background: bubbleBg(n),
-                    color: '#e5e7eb',
-                    fontSize: 11, fontWeight: 700, flexShrink: 0,
-                  }}>{n.n == null ? '·' : n.n}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
-                </button>
+                {parentIsButton ? (
+                  <button
+                    type="button"
+                    onClick={() => setSel({ parent: idx, sub: null })}
+                    title={n.title}
+                    style={parentSharedStyle}
+                    onMouseEnter={(e) => {
+                      if (isParentActive) return;
+                      (e.currentTarget as HTMLElement).style.background = '#1e293b';
+                      (e.currentTarget as HTMLElement).style.color = '#f3f4f6';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (isParentActive) return;
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      (e.currentTarget as HTMLElement).style.color = (anySubActive ? '#f3f4f6' : '#cbd5e1');
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 24, height: 24, borderRadius: '50%',
+                      background: bubbleBg(n),
+                      color: '#e5e7eb',
+                      fontSize: 11, fontWeight: 700, flexShrink: 0,
+                    }}>{n.n == null ? '·' : n.n}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
+                  </button>
+                ) : (
+                  <div title={n.title} style={{ ...parentSharedStyle, cursor: 'default', userSelect: 'none' }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 24, height: 24, borderRadius: '50%',
+                      background: bubbleBg(n),
+                      color: '#e5e7eb',
+                      fontSize: 11, fontWeight: 700, flexShrink: 0,
+                    }}>{n.n as number}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
+                  </div>
+                )}
 
                 {expanded && n.subs && n.subs.map((sub, subIdx) => {
                   const isSubActive = sel.parent === idx && sel.sub === subIdx;

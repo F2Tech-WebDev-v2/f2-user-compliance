@@ -37,9 +37,9 @@ export function Dashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 800 }}>
       <div>
-        <h1 style={{ margin: 0, fontSize: 22, color: '#e5e7eb' }}>NYSE Audit Walkthrough</h1>
+        <h1 style={{ margin: 0, fontSize: 22, color: '#e5e7eb' }}>NYSE Compliance Walkthrough</h1>
         <p style={{ margin: '6px 0 0', color: '#9ca3af', fontSize: 13 }}>
-          Use the sidebar to jump into the F2 app that supports each audit-agenda step. All links carry the members-portal sid handoff so there&rsquo;s no re-login mid-demo.
+          Use the sidebar to jump into the F2 app that supports each step. All links carry the members-portal sid handoff so there&rsquo;s no re-login mid-demo.
         </p>
       </div>
       <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
