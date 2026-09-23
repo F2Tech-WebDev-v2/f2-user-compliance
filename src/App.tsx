@@ -207,7 +207,10 @@ export function App() {
           {NAV_ITEMS.map((n, idx) => {
             const isParentActive = sel.parent === idx && sel.sub == null;
             const anySubActive   = sel.parent === idx && sel.sub != null;
-            const expanded       = !!(n.subs && n.subs.length > 0) && (isParentActive || anySubActive);
+            // c/a0c0f2b7 (Mike 2026-09-23) — subs always visible by default
+            // so the auditor can see the whole tree at a glance instead of
+            // having to click into each parent to reveal targets.
+            const expanded       = !!(n.subs && n.subs.length > 0);
             return (
               <div key={idx}>
                 <button
