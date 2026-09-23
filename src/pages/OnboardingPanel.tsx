@@ -40,7 +40,15 @@ type Me = {
   [k: string]: any;
 };
 
-type Brand = { slug: string; name?: string; isCustomerBrand?: boolean };
+type Brand = {
+  slug: string; name?: string; isCustomerBrand?: boolean;
+  // IT-F2-416 c/d1450627: SoT-driven Cognito pool for this customer's
+  // domain. null when the customer has no per-customer pool (legacy
+  // F2 fallback stays the backend's implicit choice). Populated by
+  // f2-admin-service _buildBrandConfigPayload from
+  // Customers.<slug>.cognito_pool.user_pool_id.
+  cognito_pool_id?: string | null;
+};
 
 type RowState = 'idle' | 'sending' | 'copying' | 'sent' | 'copied' | 'error';
 
@@ -213,7 +221,7 @@ export function OnboardingPanel() {
   // Cognito pool (customer-directory.cognito_pool.user_pool_id) via
   // getCustomerCognitoPool. Legacy fleet-wide pool only kicks in on
   // the raw F2 hub with no override typed.
-  const lookupExisting = useCallback(async (email: string): Promise<{ pool_id?: string; username?: string; err?: string }> => {
+  const lookupExisting = useCallback(async (email: string): Promise<{ pool_id?: string; username?: string; err?: string; wrongPool?: boolean }> => {
     try {
       const r = await fetch(`/rest/admin/users/lookup-pools-for-email?email=${encodeURIComponent(email)}`, {
         credentials: 'include',
@@ -224,10 +232,18 @@ export function OnboardingPanel() {
         : Array.isArray(j?.pools) ? j.pools.map((p: any) => p?.pool_id || p).filter(Boolean)
         : [];
       if (pool_ids.length === 0) return {};
-      const pool_id = pool_ids[0];
-      // Resolve the Cognito Username by reading the cached row. Falls
-      // through with username=email if the cached read doesn't return a
-      // Username field (email-as-username pools).
+      // Prefer the customer's SoT-derived pool when it's in the list —
+      // that's the "right pool for this domain" per Mike c/d1450627.
+      // When brand.cognito_pool_id is set but the email isn't in that
+      // pool, flag wrongPool so the caller can decide whether to
+      // create-in-target (may 409) or fall back to existing pool.
+      const target = brand?.cognito_pool_id || null;
+      let pool_id = pool_ids[0];
+      let wrongPool = false;
+      if (target) {
+        if (pool_ids.includes(target)) pool_id = target;
+        else wrongPool = true;
+      }
       try {
         const cachedRes = await fetch(`/rest/admin/users/${encodeURIComponent(email)}/cached?pool_id=${encodeURIComponent(pool_id)}`, {
           credentials: 'include',
@@ -235,25 +251,30 @@ export function OnboardingPanel() {
         if (cachedRes.ok) {
           const c = await cachedRes.json();
           const username = c?.Username || c?.username || c?.user?.Username || email;
-          return { pool_id, username };
+          return { pool_id, username, wrongPool };
         }
       } catch { /* silent — fall through */ }
-      return { pool_id, username: email };
+      return { pool_id, username: email, wrongPool };
     } catch (e: any) {
       return { err: e?.message || 'lookup failed' };
     }
-  }, []);
+  }, [brand]);
 
-  const createUser = useCallback(async (email: string, sendMagicLink: boolean): Promise<{ err?: string; username?: string; pool_id?: string; already_existed?: boolean }> => {
+  const createUser = useCallback(async (email: string, sendMagicLink: boolean): Promise<{ err?: string; username?: string; pool_id?: string }> => {
     if (customers.length === 0) return { err: 'no customer scope resolved — type target customer slug(s) below' };
     if (selectedScanners.length === 0) return { err: 'select at least one scanner' };
-    const body = {
+    const body: any = {
       email,
       role: 'member',
       customers: customers.join(','),
       scanners: selectedScanners.join(','),
       send_magic_link: sendMagicLink,
     };
+    // Pass the customer's SoT-derived pool_id explicitly when the
+    // brand-config gave us one — otherwise let the backend auto-resolve
+    // from customers (legacy fallback for customers with no per-
+    // customer cognito_pool set, e.g. current F2).
+    if (brand?.cognito_pool_id) body.pool_id = brand.cognito_pool_id;
     try {
       const res = await fetch('/rest/admin/users', {
         method: 'POST', credentials: 'include',
@@ -263,12 +284,12 @@ export function OnboardingPanel() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok || j?.err) return { err: j?.err || `HTTP ${res.status}` };
       const username = j?.Username || j?.username || j?.user?.Username || j?.user?.username || email;
-      const pool_id = j?.pool_id || j?.PoolId || j?.user?.pool_id;
+      const pool_id = j?.pool_id || j?.PoolId || j?.user?.pool_id || brand?.cognito_pool_id || undefined;
       return { username, pool_id };
     } catch (e: any) {
       return { err: e?.message || 'create failed' };
     }
-  }, [customers, selectedScanners]);
+  }, [customers, selectedScanners, brand]);
 
   const sendMagicToExisting = useCallback(async (username: string, pool_id?: string): Promise<{ err?: string }> => {
     try {
@@ -305,7 +326,10 @@ export function OnboardingPanel() {
     if (existing.pool_id && existing.username) {
       const sent = await sendMagicToExisting(existing.username, existing.pool_id);
       if (sent.err) { setRowState(email, { state: 'error', message: `existing user (pool ${existing.pool_id}): ${sent.err}` }); return; }
-      setRowState(email, { state: 'sent', message: `Magic-link email sent to existing user (pool ${existing.pool_id}).` });
+      const pref = existing.wrongPool
+        ? `Magic-link sent to existing user — WARNING: they live in pool ${existing.pool_id}, not this customer's pool ${brand?.cognito_pool_id}.`
+        : `Magic-link email sent to existing user (pool ${existing.pool_id}).`;
+      setRowState(email, { state: 'sent', message: pref });
       return;
     }
     const created = await createUser(email, true);
@@ -313,8 +337,8 @@ export function OnboardingPanel() {
       setRowState(email, { state: 'error', message: created.err });
       return;
     }
-    setRowState(email, { state: 'sent', message: 'New user created — magic-link email sent.' });
-  }, [lookupExisting, sendMagicToExisting, createUser, setRowState]);
+    setRowState(email, { state: 'sent', message: `New user created${created.pool_id ? ` in pool ${created.pool_id}` : ''} — magic-link email sent.` });
+  }, [lookupExisting, sendMagicToExisting, createUser, setRowState, brand]);
 
   const copyLinkFor = useCallback(async (email: string) => {
     setRowState(email, { state: 'copying', message: undefined, link: undefined });
@@ -334,13 +358,16 @@ export function OnboardingPanel() {
     }
     const minted = await mintForExisting(username || email, pool_id);
     if (minted.err || !minted.url) { setRowState(email, { state: 'error', message: `${noun}: ${minted.err || 'no url'}` }); return; }
+    const wrongPoolNote = existing.wrongPool
+      ? ` — WARNING: user lives in pool ${pool_id}, not this customer's pool ${brand?.cognito_pool_id}`
+      : '';
     try {
       await navigator.clipboard.writeText(minted.url);
-      setRowState(email, { state: 'copied', message: `Link copied (${noun}${pool_id ? ` · pool ${pool_id}` : ''}).`, link: minted.url });
+      setRowState(email, { state: 'copied', message: `Link copied (${noun}${pool_id ? ` · pool ${pool_id}` : ''}).${wrongPoolNote}`, link: minted.url });
     } catch {
-      setRowState(email, { state: 'copied', message: `Link ready (${noun}${pool_id ? ` · pool ${pool_id}` : ''}) — clipboard blocked, see below.`, link: minted.url });
+      setRowState(email, { state: 'copied', message: `Link ready (${noun}${pool_id ? ` · pool ${pool_id}` : ''}) — clipboard blocked, see below.${wrongPoolNote}`, link: minted.url });
     }
-  }, [lookupExisting, createUser, mintForExisting, setRowState]);
+  }, [lookupExisting, createUser, mintForExisting, setRowState, brand]);
 
   const runAllSend = useCallback(async () => {
     for (const r of rows) {
@@ -402,6 +429,9 @@ export function OnboardingPanel() {
           )}
           <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>
             Customer scope: {customers.length ? customers.join(', ') : '(none — set below)'}
+            {brand?.cognito_pool_id
+              ? ` · pool ${brand.cognito_pool_id}`
+              : ' · legacy pool (customer has no cognito_pool set in SoT)'}
           </span>
         </div>
 
