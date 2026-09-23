@@ -32,6 +32,13 @@ type NavItem = {
   kind?: NavKind;
   slug: string; // stable URL slug per tab (?tab=<slug>) for hard-refresh
   subs?: NavItem[]; // c/feafab54 — nested sub-navigation
+  // c/e64bc63f (Mike 2026-09-23) — when true, render the iframe with
+  // the `credentialless` attribute so the embedded page runs in an
+  // isolated browsing context (no cookies / localStorage bleed from
+  // the currently-signed-in dashboard). Used for surfaces where the
+  // demo needs a fresh session (login → then app), e.g. the Gap Up /
+  // Down scanner or the displacement demo.
+  credentialless?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -70,7 +77,7 @@ const NAV_ITEMS: NavItem[] = [
     subs: [
       { n: null, slug: 'entitlement-review',    label: 'Exchange Agreement Review',     title: 'Review + approve/decline user Exchange Agreements (native panel)', src: null, kind: 'agreement-review' },
       { n: null, slug: 'entitlement-user-edit', label: 'Admin · edit user',   title: 'Admin · Users panel — enable/modify/remove NYSE entitlements directly on the user record', src: 'https://admin.f2-tech.ai/admin/users', kind: 'iframe' },
-      { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'F2 Gap Up / Down — open in a second tab to trigger the displaced state', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
+      { n: null, slug: 'entitlement-displaced', label: 'Live-session displacement demo', title: 'F2 Gap Up / Down — open in a second tab to trigger the displaced state', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe', credentialless: true },
     ],
   },
 
@@ -95,7 +102,7 @@ const NAV_ITEMS: NavItem[] = [
     // Network A + B) with tier + scanner catalog + live/delayed
     // indicators.
     subs: [
-      { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down (F2 market-data scanner) — live/delayed data chip + realtime rows', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe' },
+      { n: null, slug: 'application-gap-scanner',  label: 'F2 Gap Up / Down (scanner)',  title: 'F2 Gap Up / Down (F2 market-data scanner) — live/delayed data chip + realtime rows. Loads in an isolated frame so you see the login → scanner flow fresh.', src: 'https://scanners.f2-tech.ai/scans/f2-gap-up-down', kind: 'iframe', credentialless: true },
       { n: null, slug: 'application-members-home', label: 'Members portal (catalog)',    title: 'Members portal — scanner catalog + tier chip surface', src: 'https://members.f2-tech.ai/f2', kind: 'iframe' },
     ],
   },
@@ -353,10 +360,19 @@ export function App() {
             <AcceptInvitePanel />
           ) : (
             <iframe
+              // c/e64bc63f (Mike 2026-09-23) — nav items flagged
+              // `credentialless: true` render the iframe with the
+              // credentialless attribute so the embedded page runs
+              // isolated (fresh cookies + storage), which is what the
+              // scanner / displacement demos need so the auditor sees
+              // the login → app flow rather than the parent tab's
+              // already-signed-in session.
+              {...(active.credentialless ? ({ credentialless: '' } as any) : {})}
               src={active.src!}
               title={active.title}
               key={active.src}
               style={{ flex: 1, width: '100%', border: 0, background: 'white' }}
+              referrerPolicy={active.credentialless ? 'no-referrer' : undefined}
             />
           )}
         </main>
